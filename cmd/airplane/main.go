@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/airplanedev/cli/commands/root"
+	"github.com/airplanedev/cli/pkg/trap"
 )
 
 var (
@@ -14,10 +15,11 @@ var (
 
 func main() {
 	var cmd = root.New()
+	var ctx = trap.Context()
 
 	cmd.Version = version
 
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.ExecuteContext(ctx); err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Fatalln(err)
 		}
