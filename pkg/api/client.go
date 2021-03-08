@@ -14,17 +14,27 @@ import (
 
 const (
 	// Host is the default HTTP endpoint.
-	Host = "https://api.airplane.dev"
+	Host = "https://api.airplane.local:5000/v0"
 )
 
 // Client implements Airplane client.
 //
-// The zero-value is ready for use.
+// The token must be configured, otherwise all methods will
+// return an error.
+//
+// TODO(amir): probably need to configure the host and token somewhere
+// globally, token might be read once in the beginning and passed down
+// through the context?
 type Client struct {
 	// Host is the HTTP endpoint to use.
 	//
 	// If empty, it uses the global `api.Host`.
 	Host string
+
+	// Token is the token to use for authentication.
+	//
+	// When empty the client will return an error.
+	Token string
 }
 
 // CreateTask creates a task with the given request.
@@ -60,6 +70,12 @@ func (c Client) do(ctx context.Context, method, path string, payload, reply inte
 		return errors.Wrap(err, "api: new request")
 	}
 
+	token, err := c.token()
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("X-Airplane-Token", token)
 	resp, err := http.DefaultClient.Do(req)
 
 	if resp != nil {
@@ -92,4 +108,12 @@ func (c Client) host() string {
 		return c.Host
 	}
 	return Host
+}
+
+// Token returns the configured token or an error.
+func (c Client) token() (string, error) {
+	if c.Token == "" {
+		return "", errors.New("api: token is missing")
+	}
+	return string(c.Token), nil
 }
