@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	// Host is the default HTTP endpoint.
-	Host = "https://api.airplane.local:5000/v0"
+	// Host is the default API host.
+	Host = "api.airplane.dev"
 )
 
 // Client implements Airplane client.
@@ -26,7 +26,7 @@ const (
 // globally, token might be read once in the beginning and passed down
 // through the context?
 type Client struct {
-	// Host is the HTTP endpoint to use.
+	// Host is the API host to use.
 	//
 	// If empty, it uses the global `api.Host`.
 	Host string
@@ -51,7 +51,7 @@ func (c Client) ListTasks(ctx context.Context) (res ListTasksResponse, err error
 
 // Do sends a request with `method`, `path`, `payload` and `reply`.
 func (c Client) do(ctx context.Context, method, path string, payload, reply interface{}) error {
-	var url = c.host() + path
+	var url = "https://" + c.host() + "/v0" + path
 	var body io.Reader
 
 	// TODO(amir): validate before sending?
@@ -89,7 +89,7 @@ func (c Client) do(ctx context.Context, method, path string, payload, reply inte
 		return errors.Wrapf(err, "api: %s %s", method, url)
 	}
 
-	if resp.StatusCode >= 400 && resp.StatusCode <= 500 {
+	if resp.StatusCode >= 400 && resp.StatusCode < 600 {
 		return errors.Errorf("api: %s %s - %s", method, url, resp.Status)
 	}
 
@@ -115,5 +115,5 @@ func (c Client) token() (string, error) {
 	if c.Token == "" {
 		return "", errors.New("api: token is missing")
 	}
-	return string(c.Token), nil
+	return c.Token, nil
 }
