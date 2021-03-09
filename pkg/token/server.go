@@ -2,13 +2,18 @@ package token
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
+)
+
+var (
+	// DocsURL is the URL to redirect to after the token
+	// has been sent on the channel.
+	DocsURL = "https://github.com/airplanedev/cli"
 )
 
 // Server implements a local token server.
@@ -72,8 +77,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-r.Context().Done():
 	case srv.tokens <- r.URL.Query().Get("token"):
-		w.Header().Set("Content-Type", "text/html")
-		io.WriteString(w, `<script>window.close()</script>`)
+		http.Redirect(w, r, DocsURL, 307)
 	}
 }
 
