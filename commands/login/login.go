@@ -3,10 +3,10 @@ package login
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"os/exec"
+	"os"
 	"runtime"
 
+	"github.com/airplanedev/cli/pkg/browser"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/conf"
 	"github.com/airplanedev/cli/pkg/token"
@@ -37,7 +37,7 @@ func run(ctx context.Context, c *cli.Config) error {
 		}
 		defer srv.Close()
 
-		open(loginURL(c.Client.Host, srv.URL()))
+		open(c.Client.LoginURL(srv.URL()))
 
 		select {
 		case <-ctx.Done():
@@ -56,26 +56,13 @@ func run(ctx context.Context, c *cli.Config) error {
 	return nil
 }
 
-// LoginURL returns the CLI login URL.
-func loginURL(host, redirect string) string {
-	uri := &url.URL{
-		Scheme: "https",
-		Host:   host,
-		Path:   "/i/cli/getToken",
-		RawQuery: url.Values{
-			"redirect": []string{redirect},
-		}.Encode(),
-	}
-	return uri.String()
-}
-
 // Open attempts to open the URL in the browser.
 //
-// It uses `open(1)` on darwin and simply prints the URL
-// on other operating systems.
+// As a special case, if `AP_BROWSER` env var is set to `none`
+// the command will always print the URL.
 func open(url string) {
-	if runtime.GOOS == "darwin" {
-		if err := exec.Command("open", url).Run(); err == nil {
+	if os.Getenv("AP_BROWSER") != "none" {
+		if err := browser.Open(runtime.GOOS, url); err == nil {
 			return
 		}
 	}
