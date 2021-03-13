@@ -51,14 +51,25 @@ type Client struct {
 	Token string
 }
 
+// AppURL returns the app URL.
+func (c Client) appURL() *url.URL {
+	apphost := strings.ReplaceAll(c.host(), "api", "app")
+	u, _ := url.Parse("https://" + apphost)
+	return u
+}
+
 // LoginURL returns a login URL that redirects to `uri`.
 func (c Client) LoginURL(uri string) string {
-	apphost := strings.ReplaceAll(c.host(), "api", "app")
-
-	u, _ := url.Parse("https://" + apphost)
+	u := c.appURL()
 	u.Path = "/cli/login"
 	u.RawQuery = url.Values{"redirect": []string{uri}}.Encode()
+	return u.String()
+}
 
+// RunURL returns a run URL for a run ID.
+func (c Client) RunURL(id string) string {
+	u := c.appURL()
+	u.Path = "/runs/" + id
 	return u.String()
 }
 
@@ -71,6 +82,26 @@ func (c Client) CreateTask(ctx context.Context, req CreateTaskRequest) (res Crea
 // ListTasks lists all tasks.
 func (c Client) ListTasks(ctx context.Context) (res ListTasksResponse, err error) {
 	err = c.do(ctx, "GET", "/tasks/list", nil, &res)
+	return
+}
+
+// RunTask runs a task.
+func (c Client) RunTask(ctx context.Context, req RunTaskRequest) (res RunTaskResponse, err error) {
+	err = c.do(ctx, "POST", "/runs/create", req, &res)
+	return
+}
+
+// GetRun returns a run by id.
+func (c Client) GetRun(ctx context.Context, id string) (res GetRunResponse, err error) {
+	q := url.Values{"runID": []string{id}}
+	err = c.do(ctx, "GET", "/runs/get?"+q.Encode(), nil, &res)
+	return
+}
+
+// GetTask returns a task by its slug.
+func (c Client) GetTask(ctx context.Context, slug string) (res Task, err error) {
+	q := url.Values{"slug": []string{slug}}
+	err = c.do(ctx, "GET", "/tasks/get?"+q.Encode(), nil, &res)
 	return
 }
 
