@@ -1,0 +1,12 @@
+
+name: Python Echo
+description: Echo a name using Python.
+arguments: ["--name", "{{.name}}"]
+builder: python
+builderConfig:
+  entrypoint: main.py
+
+parameters:
+  - name: Name
+    slug: name
+    type: string

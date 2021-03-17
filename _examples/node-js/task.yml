@@ -1,0 +1,14 @@
+
+name: Node-JS Echo
+description: Echo a name using node.js.
+arguments: ["{{.name}}"]
+builder: node
+builderConfig:
+  entrypoint: main.js
+  language: javascript
+  nodeVersion: "15.11.0"
+
+parameters:
+  - name: Name
+    slug: name
+    type: string
