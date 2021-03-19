@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/pkg/errors"
@@ -17,10 +18,12 @@ func New(c *cli.Config) *cobra.Command {
 	var file string
 
 	cmd := &cobra.Command{
-		Use:     "create",
-		Short:   "Create a task",
-		Long:    "Create a new task with a YAML configuration",
-		Example: "airplane create -f task.yml",
+		Use:   "create",
+		Short: "Create a task",
+		Long:  "Create a new task with a YAML configuration",
+		Example: heredoc.Doc(`
+			$ airplane tasks create -f task.yml
+		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), c, file)
 		},
@@ -68,5 +71,5 @@ func printTask(t api.Task, url string) {
 	fmt.Printf("URL: %s\n", url)
 	fmt.Printf("Arguments: %v\n\n", t.Arguments)
 	fmt.Printf("To execute the task:\n")
-	fmt.Printf("  airplane execute %s [args]\n\n", t.Slug)
+	fmt.Printf("  airplane tasks execute %s [args]\n\n", t.Slug)
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
 	"github.com/airplanedev/cli/pkg/cli"
@@ -30,11 +31,13 @@ func New(c *cli.Config) *cobra.Command {
 	var cfg = config{cli: c}
 
 	cmd := &cobra.Command{
-		Use:     "push <slug>",
-		Short:   "Push a task",
-		Long:    "Push task with a YAML configuration",
-		Example: "airplane push my-task -f task.yml",
-		Args:    cobra.ExactArgs(1),
+		Use:   "push <slug>",
+		Short: "Push a task",
+		Long:  "Push task with a YAML configuration",
+		Example: heredoc.Doc(`
+			$ airplane tasks push my-task -f my-task.yml
+		`),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg.slug = args[0]
 			return run(cmd.Context(), cfg)
@@ -120,7 +123,7 @@ func run(ctx context.Context, cfg config) error {
 	fmt.Printf(`
   Updated the task %s, to execute it:
 
-    airplane execute %s
+    airplane tasks execute %s
 `, req.Name, cfg.slug)
 	return nil
 }
