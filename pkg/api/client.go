@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -122,10 +123,38 @@ func (c Client) RunTask(ctx context.Context, req RunTaskRequest) (res RunTaskRes
 	return
 }
 
+// Watcher runs a task with the given arguments and returns a run watcher.
+func (c Client) Watcher(ctx context.Context, req RunTaskRequest) (*Watcher, error) {
+	resp, err := c.RunTask(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return newWatcher(ctx, c, resp.RunID), nil
+}
+
 // GetRun returns a run by id.
 func (c Client) GetRun(ctx context.Context, id string) (res GetRunResponse, err error) {
 	q := url.Values{"runID": []string{id}}
 	err = c.do(ctx, "GET", "/runs/get?"+q.Encode(), nil, &res)
+	return
+}
+
+// GetLogs returns the logs by runID and since timestamp.
+func (c Client) GetLogs(ctx context.Context, runID string, since time.Time) (res GetLogsResponse, err error) {
+	q := url.Values{"runID": []string{runID}}
+
+	if !since.IsZero() {
+		q.Set("since", since.Format(time.RFC3339))
+	}
+
+	err = c.do(ctx, "GET", "/runs/getLogs?"+q.Encode(), nil, &res)
+	return
+}
+
+// GetOutputs returns the outputs by runID.
+func (c Client) GetOutputs(ctx context.Context, runID string) (res GetOutputsResponse, err error) {
+	q := url.Values{"runID": []string{runID}}
+	err = c.do(ctx, "GET", "/runs/getOutputs?"+q.Encode(), nil, &res)
 	return
 }
 

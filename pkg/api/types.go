@@ -42,6 +42,27 @@ type UpdateTaskRequest struct {
 	Timeout int `json:"timeout" yaml:"timeout"`
 }
 
+// GetLogsResponse represents a get logs response.
+type GetLogsResponse struct {
+	RunID string    `json:"runID"`
+	Logs  []LogItem `json:"logs"`
+}
+
+// Outputs represents outputs.
+type Outputs map[string][]json.RawMessage
+
+// GetOutputsResponse represents a get outputs response.
+type GetOutputsResponse struct {
+	Outputs Outputs `json:"outputs"`
+}
+
+// LogItem represents a log item.
+type LogItem struct {
+	Timestamp time.Time `json:"timestamp"`
+	InsertID  string    `json:"insertID"`
+	Text      string    `json:"text"`
+}
+
 // RegistryTokenResponse represents a registry token response.
 type RegistryTokenResponse struct {
 	Token      string `json:"token"`
