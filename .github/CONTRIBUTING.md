@@ -7,8 +7,9 @@ Releases are managed by [GoReleaser](https://github.com/goreleaser/goreleaser). 
 This all happens automatically via GitHub Actions whenever a new tag is published:
 
 ```sh
-git tag v0.0.1
-git push origin v0.0.1
+export AIRPLANE_CLI_TAG=v0.0.1-alpha.2 && \
+  git tag ${AIRPLANE_CLI_TAG} && \
+  git push origin ${AIRPLANE_CLI_TAG}
 ```
 
 You can test this build process locally by running:
