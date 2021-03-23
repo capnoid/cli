@@ -1,5 +1,6 @@
 # Docs: https://goreleaser.com/
 
+project_name: airplane
 before:
   hooks:
     - go mod tidy
