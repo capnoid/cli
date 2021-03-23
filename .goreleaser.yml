@@ -14,7 +14,18 @@ builds:
       - darwin
     mod_timestamp: "{{ .CommitTimestamp }}"
 archives:
-  - replacements:
+  - files: [only-the-binary*]
+    wrap_in_directory: false
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+  - id: binary
+    format: binary
+    files: [only-the-binary*]
+    replacements:
       darwin: Darwin
       linux: Linux
       windows: Windows
