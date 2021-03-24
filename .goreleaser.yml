@@ -12,6 +12,13 @@ builds:
       - linux
       - windows
       - darwin
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: linux
+        goarch: 386
+      - goos: windows
+        goarch: 386
     mod_timestamp: "{{ .CommitTimestamp }}"
 archives:
   - files: [only-the-binary*]
@@ -21,7 +28,6 @@ archives:
     name_template: |
       {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}
     replacements:
-      386: i386
       amd64: x86_64
   - id: binary
     format: binary
@@ -29,9 +35,8 @@ archives:
     # This is the default name_template, but without the version. This allows install.sh to compute the
     # latest artifact name without knowing the version.
     name_template: |
-      {{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}
     replacements:
-      386: i386
       amd64: x86_64
 checksum:
   name_template: "checksums.txt"
