@@ -16,19 +16,21 @@ builds:
 archives:
   - files: [only-the-binary*]
     wrap_in_directory: false
+    # This is the default name_template, but without the version. This allows install.sh to compute the
+    # latest artifact name without knowing the version.
+    name_template: |
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}
     replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
       386: i386
       amd64: x86_64
   - id: binary
     format: binary
     files: [only-the-binary*]
+    # This is the default name_template, but without the version. This allows install.sh to compute the
+    # latest artifact name without knowing the version.
+    name_template: |
+      {{ .Binary }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}
     replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
       386: i386
       amd64: x86_64
 checksum:
