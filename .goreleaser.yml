@@ -12,24 +12,27 @@ builds:
       - linux
       - windows
       - darwin
+    ignore:
+      - goos: darwin
+        goarch: 386
+      - goos: linux
+        goarch: 386
+      - goos: windows
+        goarch: 386
     mod_timestamp: "{{ .CommitTimestamp }}"
 archives:
   - files: [only-the-binary*]
     wrap_in_directory: false
+    # This is the default name_template, but without the version. This allows install.sh to compute the
+    # latest artifact name without knowing the version.
+    name_template: |
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}
     replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
       amd64: x86_64
   - id: binary
     format: binary
     files: [only-the-binary*]
     replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
       amd64: x86_64
 checksum:
   name_template: "checksums.txt"
@@ -47,5 +50,11 @@ brews:
     commit_author:
       name: AirplaneBot
       email: bot-github@airplane.dev
+    install: |
+      bin.install "airplane"
 release:
   prerelease: auto
+  extra_files:
+    # Upload our installation scripts as release artifacts:
+    - glob: ./scripts/install.sh
+    - glob: ./scripts/install.ps1
