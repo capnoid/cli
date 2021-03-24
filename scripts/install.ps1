@@ -52,4 +52,4 @@ if (!(";$Path;".ToLower() -like "*;$BinDir;*".ToLower())) {
 }
 
 Write-Output "The Airplane CLI was installed successfully to $AirplaneExe"
-Write-Output "Run 'airplane --help' to get started"
+Write-Output "Run 'airplane --help' to get started."

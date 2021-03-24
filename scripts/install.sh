@@ -27,23 +27,23 @@ if [ ! -d "$bin_dir" ]; then
 	mkdir -p "$bin_dir"
 fi
 
-echo $download_uri
 curl --fail --location --progress-bar --output "$exe.tar.gz" "$download_uri"
 cd "$bin_dir"
 tar xzf "$exe.tar.gz"
 chmod +x "$exe"
 rm "$exe.tar.gz"
 
-echo "The Airplane CLI was installed successfully to $exe"
+echo "The Airplane CLI was installed successfully to $exe\n"
 if command -v airplane >/dev/null; then
-	echo "Run 'airplane --help' to get started"
+	echo "Run 'airplane --help' to get started."
 else
 	case $SHELL in
     /bin/zsh) shell_profile=".zshrc" ;;
     *) shell_profile=".bash_profile" ;;
 	esac
-	echo "Manually add the directory to your \$HOME/$shell_profile (or similar)"
-	echo "  export AIRPLANE_INSTALL=\"$airplane_install\""
-	echo "  export PATH=\"\$AIRPLANE_INSTALL/bin:\$PATH\""
-	echo "Run '$exe --help' to get started"
+	echo "✋ Manually add the following to your \$HOME/$shell_profile (or similar):"
+	echo "    export AIRPLANE_INSTALL=\"$airplane_install\""
+	echo "    export PATH=\"\$AIRPLANE_INSTALL/bin:\$PATH\""
+  echo ""
+	echo "Then, run 'airplane --help' to get started."
 fi
