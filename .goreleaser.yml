@@ -60,4 +60,4 @@ release:
   prerelease: auto
   extra_files:
     # Upload our installation scripts as release artifacts:
-    - globs: ./scripts/install*
+    - glob: ./scripts/install*
