@@ -51,3 +51,6 @@ brews:
       email: bot-github@airplane.dev
 release:
   prerelease: auto
+  extra_files:
+    # Upload our installation scripts as release artifacts:
+    - globs: ./scripts/install*

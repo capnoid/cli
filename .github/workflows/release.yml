@@ -24,8 +24,3 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GORELEASER_GITHUB_TOKEN }}
-      - name: Upload checksums as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: checksums
-          path: dist/checksums.txt
