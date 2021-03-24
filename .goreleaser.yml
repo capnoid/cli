@@ -54,6 +54,8 @@ brews:
     commit_author:
       name: AirplaneBot
       email: bot-github@airplane.dev
+    install: |
+      bin.install "airplane"
 release:
   prerelease: auto
   extra_files:
