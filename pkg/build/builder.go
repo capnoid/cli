@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -120,6 +121,10 @@ func New(c Config) (*Builder, error) {
 	}, nil
 }
 
+type BuildOutput struct {
+	Tag string
+}
+
 // Build runs the docker build.
 //
 // Depending on the configured `Config.Builder` the method verifies that
@@ -128,33 +133,33 @@ func New(c Config) (*Builder, error) {
 // The method creates a Dockerfile depending on the configured builder
 // and adds it to the tree, it passes the tree as the build context
 // and initializes the build.
-func (b *Builder) Build(ctx context.Context, taskID, version string) (*types.ImageSummary, error) {
+func (b *Builder) Build(ctx context.Context, taskID, version string) (BuildOutput, error) {
 	var repo = b.auth.Repo
 	var name = "task-" + sanitizeTaskID(taskID)
 	var tag = repo + "/" + name + ":" + version
 
 	tree, err := NewTree()
 	if err != nil {
-		return nil, errors.Wrap(err, "new tree")
+		return BuildOutput{}, errors.Wrap(err, "new tree")
 	}
 	defer tree.Close()
 
 	buf, err := b.dockerfile()
 	if err != nil {
-		return nil, errors.Wrap(err, "creating dockerfile")
+		return BuildOutput{}, errors.Wrap(err, "creating dockerfile")
 	}
 
 	if err := tree.Write("Dockerfile", strings.NewReader(buf)); err != nil {
-		return nil, errors.Wrap(err, "writing dockerfile")
+		return BuildOutput{}, errors.Wrap(err, "writing dockerfile")
 	}
 
 	if err := tree.Copy(b.root); err != nil {
-		return nil, errors.Wrapf(err, "copy %q", b.root)
+		return BuildOutput{}, errors.Wrapf(err, "copy %q", b.root)
 	}
 
 	bc, err := tree.Archive()
 	if err != nil {
-		return nil, errors.Wrap(err, "archive tree")
+		return BuildOutput{}, errors.Wrap(err, "archive tree")
 	}
 	defer bc.Close()
 
@@ -167,30 +172,32 @@ func (b *Builder) Build(ctx context.Context, taskID, version string) (*types.Ima
 
 	resp, err := b.client.ImageBuild(ctx, bc, opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "image build")
+		return BuildOutput{}, errors.Wrap(err, "image build")
 	}
 	defer resp.Body.Close()
 
 	// TODO(amir): read and abort on any build errors, including the surrounding
 	// lines.
 	if _, err := io.Copy(b.writer, resp.Body); err != nil {
-		return nil, errors.Wrap(err, "copy output")
+		return BuildOutput{}, errors.Wrap(err, "copy output")
 	}
 
 	images, err := b.client.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "image list")
+		return BuildOutput{}, errors.Wrap(err, "image list")
 	}
 
 	for _, img := range images {
 		for _, t := range img.RepoTags {
 			if t == tag {
-				return &img, nil
+				return BuildOutput{
+					Tag: t,
+				}, nil
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("build: image with the tag %q was not found", tag)
+	return BuildOutput{}, fmt.Errorf("build: image with the tag %q was not found", tag)
 }
 
 // Push pushes the given image.
@@ -218,10 +225,6 @@ func (b *Builder) Push(ctx context.Context, tag string) error {
 
 // Dockerfile returns the dockerfile for the builder.
 func (b *Builder) dockerfile() (string, error) {
-	if b.args["entrypoint"] == "" {
-		return "", fmt.Errorf("build: .entrypoint is required")
-	}
-
 	switch b.name {
 	case "go":
 		return golang(b.root, b.args)
@@ -231,6 +234,8 @@ func (b *Builder) dockerfile() (string, error) {
 		return python(b.root, b.args)
 	case "node":
 		return node(b.root, b.args)
+	case "docker":
+		return docker(b.root, b.args)
 	default:
 		return "", errors.Errorf("build: unknown builder type %q", b.name)
 	}
@@ -267,4 +272,14 @@ func sanitizeTaskID(s string) string {
 		s = s[:len(s)-1] + "a"
 	}
 	return s
+}
+
+// exist ensures that all paths exists or returns an error.
+func exist(paths ...string) error {
+	for _, p := range paths {
+		if _, err := os.Stat(p); os.IsNotExist(err) {
+			return fmt.Errorf("build: the file %s is required", path.Base(p))
+		}
+	}
+	return nil
 }
