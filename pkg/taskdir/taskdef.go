@@ -1,9 +1,13 @@
-package taskdef
+package taskdir
 
 import (
 	"io/ioutil"
+	"os"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/utils"
+	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -30,10 +34,42 @@ type Definition struct {
 	Timeout        int               `yaml:"timeout"`
 }
 
-func Read(path string) (Definition, error) {
-	buf, err := ioutil.ReadFile(path)
+func (this Definition) Validate() (Definition, error) {
+	canPrompt := isatty.IsTerminal(os.Stdout.Fd())
+
+	if this.Slug == "" {
+		if !canPrompt {
+			return this, errors.New("Expected a slug")
+		}
+
+		if err := survey.AskOne(
+			&survey.Input{
+				Message: "Pick a unique identifier (slug) for this task",
+				Default: utils.MakeSlug(this.Name),
+			},
+			&this.Slug,
+			survey.WithValidator(func(val interface{}) error {
+				if str, ok := val.(string); !ok || !utils.IsSlug(str) {
+					return errors.New("Slugs can only contain lowercase letters, underscores, and numbers.")
+				}
+
+				return nil
+			}),
+		); err != nil {
+			return this, errors.Wrap(err, "prompting for slug")
+		}
+	}
+
+	// TODO: persist validation changes, if any, back to the local file.
+	// TODO: validate the rest of the fields!
+
+	return this, nil
+}
+
+func (this TaskDirectory) ReadDefinition() (Definition, error) {
+	buf, err := ioutil.ReadFile(this.path)
 	if err != nil {
-		return Definition{}, errors.Wrapf(err, "reading task definition from %s", path)
+		return Definition{}, errors.Wrap(err, "reading task definition")
 	}
 
 	var def Definition

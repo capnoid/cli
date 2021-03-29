@@ -6,13 +6,12 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
 	"github.com/airplanedev/cli/pkg/cli"
-	"github.com/airplanedev/cli/pkg/taskdef"
+	"github.com/airplanedev/cli/pkg/taskdir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +30,7 @@ func New(c *cli.Config) *cobra.Command {
 		Short: "Deploy a task",
 		Long:  "Deploy a task from a YAML-based task definition",
 		Example: heredoc.Doc(`
-			$ airplane tasks deploy -f my-task.yml
+			airplane tasks deploy -f my-task.yml
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return run(cmd.Context(), cfg)
@@ -49,8 +48,18 @@ func New(c *cli.Config) *cobra.Command {
 func run(ctx context.Context, cfg config) error {
 	var client = cfg.cli.Client
 
-	def, err := taskdef.Read(cfg.file)
+	dir, err := taskdir.Open(cfg.file)
 	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	def, err := dir.ReadDefinition()
+	if err != nil {
+		return err
+	}
+
+	if def, err = def.Validate(); err != nil {
 		return err
 	}
 
@@ -91,18 +100,13 @@ func run(ctx context.Context, cfg config) error {
 			return errors.Wrap(err, "getting registry token")
 		}
 
-		root, err := filepath.Abs(filepath.Dir(cfg.file))
-		if err != nil {
-			return errors.Wrap(err, "getting root directory")
-		}
-
 		var output io.Writer = ioutil.Discard
 		if cfg.debug {
 			output = os.Stderr
 		}
 
 		b, err := build.New(build.Config{
-			Root:    root,
+			Root:    dir.Dir,
 			Builder: def.Builder,
 			Args:    build.Args(def.BuilderConfig),
 			Writer:  output,
@@ -147,11 +151,15 @@ func run(ctx context.Context, cfg config) error {
 	}
 
 	fmt.Println("  Done!")
+	cmd := fmt.Sprintf("airplane tasks execute %s", def.Slug)
+	if len(def.Parameters) > 0 {
+		cmd += " -- [parameters]"
+	}
 	fmt.Printf(`
 To execute %s:
-- From the CLI: airplane tasks execute %s -- [parameters]
+- From the CLI: %s
 - From the UI: %s
-`, def.Name, def.Slug, client.TaskURL(taskID))
+`, def.Name, cmd, client.TaskURL(taskID))
 
 	return nil
 }
