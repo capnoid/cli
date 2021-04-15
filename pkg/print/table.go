@@ -11,6 +11,7 @@ import (
 
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/cli/pkg/params"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -64,7 +65,11 @@ func (t Table) tasks(tasks []api.Task) {
 
 				var defaultStr string
 				if p.Default != nil {
-					defaultStr = fmt.Sprintf(" (default: %v)", p.Default)
+					defaultVal, err := params.APIValueToInput(p, p.Default)
+					if err != nil {
+						defaultVal = "<unknown>"
+					}
+					defaultStr = fmt.Sprintf(" (default: %s)", defaultVal)
 				}
 
 				ps = append(ps, fmt.Sprintf("- %s%s [%s]%s", p.Slug, reqStr, string(p.Type), defaultStr))
@@ -107,9 +112,9 @@ func (t Table) task(task api.Task) {
 				requiredStr = "no"
 			}
 
-			var defaultStr string
-			if p.Default != nil {
-				defaultStr = fmt.Sprintf("%v", p.Default)
+			defaultStr, err := params.APIValueToInput(p, p.Default)
+			if err != nil {
+				defaultStr = "<unknown>"
 			}
 
 			tw.Append([]string{
