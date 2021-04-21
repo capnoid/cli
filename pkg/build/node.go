@@ -49,7 +49,7 @@ func node(root string, args Args) (string, error) {
 			buildDir = ".airplane-build"
 		}
 		cmds = append(cmds, `npm install -g typescript@4.1`)
-		cmds = append(cmds, `[-f tsconfig.json] || echo '{"include": ["*", "**/*"], "exclude": ["node_modules"]}' >tsconfig.json`)
+		cmds = append(cmds, `[ -f tsconfig.json ] || echo '{"include": ["*", "**/*"], "exclude": ["node_modules"]}' >tsconfig.json`)
 		cmds = append(cmds, fmt.Sprintf(`rm -rf %s && tsc --outDir %s --rootDir .`, buildDir, buildDir))
 		if buildCommand != "" {
 			// It's not totally expected, but if you do set buildCommand we'll run it after tsc
