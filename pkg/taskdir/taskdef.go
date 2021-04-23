@@ -1,13 +1,20 @@
 package taskdir
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
+
+const taskDefDocURL = "https://docs.airplane.dev/reference/task-definition-reference"
 
 // Definition represents a YAML-based task definition that can be used to create
 // or update Airplane tasks.
@@ -50,10 +57,60 @@ func (this Definition) Validate() (Definition, error) {
 	return this, nil
 }
 
+type errReadDefinition struct {
+	msg       string
+	errorMsgs []string
+}
+
+func newErrReadDefinition(msg string, errorMsgs ...string) error {
+	return errors.WithStack(errReadDefinition{
+		msg:       msg,
+		errorMsgs: errorMsgs,
+	})
+}
+
+func (this errReadDefinition) Error() string {
+	return this.msg
+}
+
+// Implements ErrorExplained
+func (this errReadDefinition) ExplainError() string {
+	msgs := []string{}
+	msgs = append(msgs, this.errorMsgs...)
+	msgs = append(msgs, fmt.Sprintf("\nFor more information on the task definition format, see the docs:\n%s", taskDefDocURL))
+	return strings.Join(msgs, "\n")
+}
+
 func (this TaskDirectory) ReadDefinition() (Definition, error) {
 	buf, err := ioutil.ReadFile(this.defPath)
 	if err != nil {
 		return Definition{}, errors.Wrap(err, "reading task definition")
+	}
+
+	// Validate definition against our Definition struct
+	if err := ValidateYAML(buf, Definition{}); err != nil {
+		defPath := this.defPath
+		// Attempt to set a prettier defPath, best effort
+		if wd, err := os.Getwd(); err != nil {
+			logger.Debug("%s", err)
+		} else if path, err := filepath.Rel(wd, defPath); err != nil {
+			logger.Debug("%s", err)
+		} else {
+			defPath = path
+		}
+		// Print any "expected" validation errors
+		switch err := errors.Cause(err).(type) {
+		case ErrInvalidYAML:
+			return Definition{}, newErrReadDefinition(fmt.Sprintf("Error reading %s: invalid YAML", defPath))
+		case ErrSchemaValidation:
+			errorMsgs := []string{}
+			for _, verr := range err.Errors {
+				errorMsgs = append(errorMsgs, fmt.Sprintf("%s: %s", verr.Field(), verr.Description()))
+			}
+			return Definition{}, newErrReadDefinition(fmt.Sprintf("Error reading %s", defPath), errorMsgs...)
+		default:
+			return Definition{}, errors.Wrapf(err, "reading %s", defPath)
+		}
 	}
 
 	var def Definition
