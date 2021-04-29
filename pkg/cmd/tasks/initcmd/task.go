@@ -9,6 +9,7 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir"
+	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/pkg/errors"
 )
 
@@ -42,25 +43,13 @@ func initFromTask(ctx context.Context, cfg config) error {
 		return errors.Wrap(err, "getting unique slug")
 	}
 
-	def := taskdir.Definition{
-		Slug:           r.Slug,
-		Name:           task.Name,
-		Description:    task.Description,
-		Command:        task.Command,
-		Arguments:      task.Arguments,
-		Parameters:     task.Parameters,
-		Constraints:    task.Constraints,
-		Env:            task.Env,
-		ResourceLimits: task.ResourceLimits,
-		Builder:        task.Kind,
-		BuilderConfig:  task.KindOptions,
-		Repo:           task.Repo,
-		Timeout:        task.Timeout,
+	def, err := definitions.NewDefinitionFromTask(task)
+	if err != nil {
+		return err
 	}
-	// Only show the image field if this is a manual builder
-	if task.Kind == "manual" {
-		def.Image = task.Image
-	}
+
+	def.Slug = r.Slug
+
 	if err := dir.WriteDefinition(def); err != nil {
 		return errors.Wrap(err, "writing task definition")
 	}

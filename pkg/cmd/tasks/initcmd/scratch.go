@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/cmd/tasks/initcmd/scaffolders"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir"
+	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +48,7 @@ func initFromScratch(ctx context.Context, cfg config) error {
 		return errors.Wrap(err, "getting unique slug")
 	}
 
-	def := taskdir.Definition{
+	def := definitions.Definition{
 		Slug:        r.Slug,
 		Name:        name,
 		Description: description,
@@ -57,10 +57,13 @@ func initFromScratch(ctx context.Context, cfg config) error {
 	var scaffolder scaffolders.RuntimeScaffolder
 	if runtime == runtimeKindManual {
 		// TODO: let folks enter an image
-		def.Image = "alpine:3"
-		def.Command = []string{"echo", `"Hello World"`}
+		manual := definitions.ManualDefinition{
+			Image:   "alpine:3",
+			Command: []string{"echo", `"Hello World"`},
+		}
+		def.Manual = &manual
 	} else {
-		if def.Builder, def.BuilderConfig, scaffolder, err = defaultRuntimeConfig(runtime); err != nil {
+		if scaffolder, err = defaultRuntimeConfig(runtime, &def); err != nil {
 			return err
 		}
 	}
@@ -86,33 +89,28 @@ Once you are ready, deploy it to Airplane with:
 	return nil
 }
 
-func defaultRuntimeConfig(runtime runtimeKind) (string, api.KindOptions, scaffolders.RuntimeScaffolder, error) {
+func defaultRuntimeConfig(runtime runtimeKind, def *definitions.Definition) (scaffolders.RuntimeScaffolder, error) {
 	// TODO: let folks configure the following configuration
 	switch runtime {
 	case runtimeKindDeno:
-		return "deno", api.KindOptions{
-			"entrypoint": "main.ts",
-		}, scaffolders.DenoScaffolder{Entrypoint: "main.ts"}, nil
+		def.Deno.Entrypoint = "main.ts"
+		return scaffolders.DenoScaffolder{Entrypoint: "main.ts"}, nil
 	case runtimeKindDockerfile:
-		return "docker", api.KindOptions{
-			"dockerfile": "Dockerfile",
-		}, scaffolders.DockerfileScaffolder{Dockerfile: "Dockerfile"}, nil
+		def.Dockerfile.Dockerfile = "Dockerfile"
+		return scaffolders.DockerfileScaffolder{Dockerfile: "Dockerfile"}, nil
 	case runtimeKindGo:
-		return "go", api.KindOptions{
-			"entrypoint": "main.go",
-		}, scaffolders.GoScaffolder{Entrypoint: "main.go"}, nil
+		def.Go.Entrypoint = "main.go"
+		return scaffolders.GoScaffolder{Entrypoint: "main.go"}, nil
 	case runtimeKindNode:
-		return "node", api.KindOptions{
-			"entrypoint":  "main.js",
-			"language":    "javascript",
-			"nodeVersion": "15",
-		}, scaffolders.NodeScaffolder{Entrypoint: "main.js"}, nil
+		def.Node.Entrypoint = "main.js"
+		def.Node.Language = "javascript"
+		def.Node.NodeVersion = "15"
+		return scaffolders.NodeScaffolder{Entrypoint: "main.js"}, nil
 	case runtimeKindPython:
-		return "python", api.KindOptions{
-			"entrypoint": "main.py",
-		}, scaffolders.PythonScaffolder{Entrypoint: "main.py"}, nil
+		def.Python.Entrypoint = "main.py"
+		return scaffolders.PythonScaffolder{Entrypoint: "main.py"}, nil
 	default:
-		return "", nil, nil, errors.Errorf("unknown runtime: %s", runtime)
+		return nil, errors.Errorf("unknown runtime: %s", runtime)
 	}
 }
 
@@ -169,7 +167,7 @@ func pickString(msg string, opts ...survey.AskOpt) (string, error) {
 
 // For the various runtimes, we pre-populate basic versions of e.g. package.json to reduce how much
 // the user has to set up.
-func writeRuntimeFiles(def taskdir.Definition, scaffolder scaffolders.RuntimeScaffolder) ([]string, error) {
+func writeRuntimeFiles(def definitions.Definition, scaffolder scaffolders.RuntimeScaffolder) ([]string, error) {
 	fileNames := []string{}
 	files := map[string][]byte{}
 	if err := scaffolder.GenerateFiles(def, files); err != nil {
