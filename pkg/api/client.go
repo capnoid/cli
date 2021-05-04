@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/version"
 
 	"github.com/pkg/errors"
@@ -162,11 +163,12 @@ func (c Client) GetRun(ctx context.Context, id string) (res GetRunResponse, err 
 // GetLogs returns the logs by runID and since timestamp.
 func (c Client) GetLogs(ctx context.Context, runID string, since time.Time) (res GetLogsResponse, err error) {
 	q := url.Values{"runID": []string{runID}}
-
 	if !since.IsZero() {
 		q.Set("since", since.Format(time.RFC3339))
 	}
-
+	if logger.EnableDebug {
+		q.Set("level", "debug")
+	}
 	err = c.do(ctx, "GET", "/runs/getLogs?"+q.Encode(), nil, &res)
 	return
 }
@@ -240,6 +242,9 @@ func (c Client) GetBuildLogs(ctx context.Context, buildID string, since time.Tim
 	}
 	if !since.IsZero() {
 		q.Set("since", since.Format(time.RFC3339))
+	}
+	if logger.EnableDebug {
+		q.Set("level", "debug")
 	}
 	err = c.do(ctx, "GET", "/builds/getLogs?"+q.Encode(), nil, &res)
 	return
