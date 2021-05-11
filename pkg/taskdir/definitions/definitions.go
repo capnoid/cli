@@ -71,9 +71,7 @@ func NewDefinitionFromTask(task api.Task) (Definition, error) {
 
 	} else if task.Kind == api.TaskKindSQL {
 		sql := SQLDefinition{
-			Query:  task.KindOptions["query"],
-			Driver: task.KindOptions["driver"],
-			DSN:    task.KindOptions["dsn"],
+			Query: task.KindOptions["query"],
 		}
 		def.SQL = &sql
 
@@ -111,9 +109,7 @@ func (this Definition) GetKindAndOptions() (api.TaskKind, api.KindOptions, error
 		return api.TaskKindManual, api.KindOptions{}, nil
 	} else if this.SQL != nil {
 		return api.TaskKindSQL, api.KindOptions{
-			"query":  this.SQL.Query,
-			"driver": this.SQL.Driver,
-			"dsn":    this.SQL.DSN,
+			"query": this.SQL.Query,
 		}, nil
 	}
 
