@@ -24,7 +24,8 @@ type Definition_0_2 struct {
 	Node       *NodeDefinition   `yaml:"node,omitempty"`
 	Python     *PythonDefinition `yaml:"python,omitempty"`
 
-	SQL *SQLDefinition `yaml:"sql,omitempty"`
+	SQL  *SQLDefinition  `yaml:"sql,omitempty"`
+	REST *RESTDefinition `yaml:"rest,omitempty"`
 
 	// Root is a directory path relative to the parent directory of this
 	// task definition which defines what directory should be included
@@ -42,29 +43,38 @@ type ManualDefinition struct {
 }
 
 type DenoDefinition struct {
-	Entrypoint string `yaml:"entrypoint"`
+	Entrypoint string `yaml:"entrypoint" mapstructure:"entrypoint"`
 }
 
 type DockerDefinition struct {
-	Dockerfile string `yaml:"dockerfile"`
+	Dockerfile string `yaml:"dockerfile" mapstructure:"dockerfile"`
 }
 
 type GoDefinition struct {
-	Entrypoint string `yaml:"entrypoint"`
+	Entrypoint string `yaml:"entrypoint" mapstructure:"entrypoint"`
 }
 
 type NodeDefinition struct {
-	Entrypoint  string `yaml:"entrypoint"`
-	Language    string `yaml:"language"`
-	NodeVersion string `yaml:"nodeVersion"`
+	Entrypoint  string `yaml:"entrypoint" mapstructure:"entrypoint"`
+	Language    string `yaml:"language" mapstructure:"language"`
+	NodeVersion string `yaml:"nodeVersion" mapstructure:"nodeVersion"`
 }
 
 type PythonDefinition struct {
-	Entrypoint string `yaml:"entrypoint"`
+	Entrypoint string `yaml:"entrypoint" mapstructure:"entrypoint"`
 }
 
 type SQLDefinition struct {
-	Query string `yaml:"query"`
+	Query string `yaml:"query" mapstructure:"query"`
+}
+
+type RESTDefinition struct {
+	Headers   []string               `yaml:"headers,omitempty" mapstructure:"headers"`
+	Method    string                 `yaml:"method" mapstructure:"method"`
+	Path      string                 `yaml:"path" mapstructure:"path"`
+	URLParams map[string]interface{} `yaml:"urlParams,omitempty" mapstructure:"urlParams"`
+	Body      string                 `yaml:"body,omitempty" mapstructure:"body"`
+	JSONBody  interface{}            `yaml:"jsonBody,omitempty" mapstructure:"jsonBody"`
 }
 
 func (d Definition_0_2) upgrade() (Definition, error) {

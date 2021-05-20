@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -30,87 +31,93 @@ func NewDefinitionFromTask(task api.Task) (Definition, error) {
 		Timeout:          task.Timeout,
 	}
 
+	var taskDef interface{}
 	if task.Kind == api.TaskKindDeno {
-		deno := DenoDefinition{
-			Entrypoint: task.KindOptions["entrypoint"],
-		}
-		def.Deno = &deno
+		def.Deno = &DenoDefinition{}
+		taskDef = &def.Deno
 
 	} else if task.Kind == api.TaskKindDocker {
-		docker := DockerDefinition{
-			Dockerfile: task.KindOptions["dockerfile"],
-		}
-		def.Dockerfile = &docker
+		def.Dockerfile = &DockerDefinition{}
+		taskDef = &def.Dockerfile
 
 	} else if task.Kind == api.TaskKindGo {
-		godef := GoDefinition{
-			Entrypoint: task.KindOptions["entrypoint"],
-		}
-		def.Go = &godef
+		def.Go = &GoDefinition{}
+		taskDef = &def.Go
 
 	} else if task.Kind == api.TaskKindNode {
-		node := NodeDefinition{
-			Entrypoint:  task.KindOptions["entrypoint"],
-			Language:    task.KindOptions["language"],
-			NodeVersion: task.KindOptions["nodeVersion"],
-		}
-		def.Node = &node
+		def.Node = &NodeDefinition{}
+		taskDef = &def.Node
 
 	} else if task.Kind == api.TaskKindPython {
-		python := PythonDefinition{
-			Entrypoint: task.KindOptions["entrypoint"],
-		}
-		def.Python = &python
+		def.Python = &PythonDefinition{}
+		taskDef = &def.Python
 
 	} else if task.Kind == api.TaskKindManual {
-		manual := ManualDefinition{
+		def.Manual = &ManualDefinition{
 			Image:   task.Image,
 			Command: task.Command,
 		}
-		def.Manual = &manual
 
 	} else if task.Kind == api.TaskKindSQL {
-		sql := SQLDefinition{
-			Query: task.KindOptions["query"],
-		}
-		def.SQL = &sql
+		def.SQL = &SQLDefinition{}
+		taskDef = &def.SQL
+
+	} else if task.Kind == api.TaskKindREST {
+		def.REST = &RESTDefinition{}
+		taskDef = &def.REST
 
 	} else {
 		return Definition{}, errors.Errorf("unknown kind specified: %s", task.Kind)
+	}
+
+	if taskDef != nil {
+		if err := mapstructure.Decode(task.KindOptions, taskDef); err != nil {
+			return Definition{}, errors.Wrap(err, "decoding options")
+		}
 	}
 
 	return def, nil
 }
 
 func (this Definition) GetKindAndOptions() (api.TaskKind, api.KindOptions, error) {
+	options := api.KindOptions{}
 	if this.Deno != nil {
-		return api.TaskKindDeno, api.KindOptions{
-			"entrypoint": this.Deno.Entrypoint,
-		}, nil
+		if err := mapstructure.Decode(this.Deno, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding Deno definition")
+		}
+		return api.TaskKindDeno, options, nil
 	} else if this.Dockerfile != nil {
-		return api.TaskKindDocker, api.KindOptions{
-			"dockerfile": this.Dockerfile.Dockerfile,
-		}, nil
+		if err := mapstructure.Decode(this.Dockerfile, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding Dockerfile definition")
+		}
+		return api.TaskKindDocker, options, nil
 	} else if this.Go != nil {
-		return api.TaskKindGo, api.KindOptions{
-			"entrypoint": this.Go.Entrypoint,
-		}, nil
+		if err := mapstructure.Decode(this.Go, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding Go definition")
+		}
+		return api.TaskKindGo, options, nil
 	} else if this.Node != nil {
-		return api.TaskKindNode, api.KindOptions{
-			"entrypoint":  this.Node.Entrypoint,
-			"language":    this.Node.Language,
-			"nodeVersion": this.Node.NodeVersion,
-		}, nil
+		if err := mapstructure.Decode(this.Node, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding Node definition")
+		}
+		return api.TaskKindNode, options, nil
 	} else if this.Python != nil {
-		return api.TaskKindPython, api.KindOptions{
-			"entrypoint": this.Python.Entrypoint,
-		}, nil
+		if err := mapstructure.Decode(this.Python, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding Python definition")
+		}
+		return api.TaskKindPython, options, nil
 	} else if this.Manual != nil {
 		return api.TaskKindManual, api.KindOptions{}, nil
 	} else if this.SQL != nil {
-		return api.TaskKindSQL, api.KindOptions{
-			"query": this.SQL.Query,
-		}, nil
+		if err := mapstructure.Decode(this.SQL, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding SQL definition")
+		}
+		return api.TaskKindSQL, options, nil
+	} else if this.REST != nil {
+		if err := mapstructure.Decode(this.REST, &options); err != nil {
+			return "", api.KindOptions{}, errors.Wrap(err, "decoding REST definition")
+		}
+		return api.TaskKindREST, options, nil
 	}
 
 	return "", api.KindOptions{}, errors.New("No kind specified")
@@ -142,6 +149,9 @@ func (this Definition) Validate() (Definition, error) {
 	}
 	if this.SQL != nil {
 		defs = append(defs, "sql")
+	}
+	if this.REST != nil {
+		defs = append(defs, "rest")
 	}
 
 	if len(defs) == 0 {
