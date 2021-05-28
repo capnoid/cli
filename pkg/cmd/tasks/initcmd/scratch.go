@@ -57,11 +57,11 @@ func initFromScratch(ctx context.Context, cfg config) error {
 	var scaffolder scaffolders.RuntimeScaffolder
 	if runtime == runtimeKindManual {
 		// TODO: let folks enter an image
-		manual := definitions.ManualDefinition{
+		image := definitions.ImageDefinition{
 			Image:   "alpine:3",
 			Command: []string{"echo", `"Hello World"`},
 		}
-		def.Manual = &manual
+		def.Image = &image
 	} else {
 		if scaffolder, err = defaultRuntimeConfig(runtime, &def); err != nil {
 			return err
@@ -101,7 +101,7 @@ func defaultRuntimeConfig(runtime runtimeKind, def *definitions.Definition) (sca
 		}
 		return scaffolders.DenoScaffolder{Entrypoint: "main.ts"}, nil
 	case runtimeKindDockerfile:
-		def.Dockerfile = &definitions.DockerDefinition{
+		def.Dockerfile = &definitions.DockerfileDefinition{
 			Dockerfile: "Dockerfile",
 		}
 		return scaffolders.DockerfileScaffolder{Dockerfile: "Dockerfile"}, nil

@@ -97,7 +97,7 @@ ENTRYPOINT ["node", "{{ .Main }}"]
 	if version == "" {
 		version = "15"
 	}
-	v, err := GetVersion(BuilderNameNode, version)
+	v, err := GetVersion(NameNode, version)
 	if err != nil {
 		return "", err
 	}
