@@ -4,15 +4,18 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/fsx"
 )
 
 // Python creates a dockerfile for Python.
-func python(root string, args Args) (string, error) {
-	var entrypoint = args["entrypoint"]
-	var main = filepath.Join(root, entrypoint)
-	var reqs = filepath.Join(root, "requirements.txt")
+func python(root string, options api.KindOptions) (string, error) {
+	entrypoint, _ := options["entrypoint"].(string)
+	main := filepath.Join(root, entrypoint)
+	reqs := filepath.Join(root, "requirements.txt")
 
-	if err := exist(main); err != nil {
+	if err := fsx.AssertExistsAll(main); err != nil {
 		return "", err
 	}
 
@@ -43,7 +46,7 @@ func python(root string, args Args) (string, error) {
 	}{
 		Base:            v.String(),
 		Entrypoint:      entrypoint,
-		HasRequirements: exist(reqs) == nil,
+		HasRequirements: fsx.AssertExistsAll(reqs) == nil,
 	}); err != nil {
 		return "", err
 	}

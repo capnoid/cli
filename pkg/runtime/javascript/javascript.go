@@ -2,15 +2,23 @@ package javascript
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/build"
+	"github.com/airplanedev/cli/pkg/fsx"
+	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
+	"github.com/blang/semver/v4"
 	"github.com/pkg/errors"
 )
 
@@ -94,4 +102,118 @@ func (r Runtime) FormatComment(s string) string {
 		lines = append(lines, "// "+line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) ([]string, error) {
+	checkNodeVersion(ctx, opts.KindOptions)
+	if err := checkTscInstalled(ctx); err != nil {
+		return nil, err
+	}
+
+	root, err := r.Root(opts.Path)
+	if err != nil {
+		return nil, err
+	}
+	workdir := filepath.Dir(opts.Path)
+
+	if err := os.Mkdir(filepath.Join(root, ".airplane"), os.ModeDir|0777); err != nil && !os.IsExist(err) {
+		return nil, errors.Wrap(err, "creating .airplane directory")
+	}
+
+	shim, err := build.NodeShim(root, opts.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := os.WriteFile(filepath.Join(root, ".airplane/shim.ts"), []byte(shim), 0644); err != nil {
+		return nil, errors.Wrap(err, "writing shim file")
+	}
+
+	if err := os.RemoveAll(filepath.Join(root, ".airplane/dist")); err != nil {
+		return nil, errors.Wrap(err, "cleaning dist folder")
+	}
+
+	if fsx.AssertExistsAll(filepath.Join(root, "package.json")) != nil {
+		if err := os.WriteFile(filepath.Join(root, "package.json"), []byte("{}"), 0777); err != nil {
+			return nil, errors.Wrap(err, "creating default package.json")
+		}
+	}
+
+	isYarn := fsx.AssertExistsAll(filepath.Join(root, "yarn.lock")) == nil
+	var cmd *exec.Cmd
+	if isYarn {
+		cmd = exec.CommandContext(ctx, "yarn", "add", "-D", "@types/node")
+	} else {
+		cmd = exec.CommandContext(ctx, "npm", "install", "--save-dev", "@types/node")
+	}
+	cmd.Dir = workdir
+	if err := cmd.Run(); err != nil {
+		return nil, errors.New("failed to add @types/node dependency")
+	}
+
+	cmd = exec.CommandContext(ctx, "tsc", build.NodeTscArgs(".", opts.KindOptions)...)
+	cmd.Dir = root
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Log(strings.TrimSpace(string(out)))
+		logger.Debug("\nCommand: %s", strings.Join(cmd.Args, " "))
+
+		return nil, errors.Errorf("failed to compile %s", opts.Path)
+	}
+
+	pv, err := json.Marshal(opts.ParamValues)
+	if err != nil {
+		return nil, errors.Wrap(err, "serializing param values")
+	}
+
+	return []string{"node", filepath.Join(root, ".airplane/dist/.airplane/shim.js"), string(pv)}, nil
+}
+
+// checkTscInstalled will error if the tsc CLI is not installed.
+//
+// TODO: consider either a) auto-installing tsc or b) packaging it
+// with the airplane CLI. The latter would be ideal, since we could
+// enforce that the correct version of tsc is used.
+func checkTscInstalled(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "tsc", "--version")
+	if err := cmd.Run(); err != nil {
+		return errors.New(heredoc.Doc(`
+			It looks like the typescript CLI (tsc) is not installed.
+
+			You can install it with:
+			  npm install -g typescript
+			  tsc --version
+			
+			See also: https://www.typescriptlang.org/download
+		`))
+	}
+
+	return nil
+}
+
+// checkNodeVersion compares the major version of the currently installed
+// node binary with that of the configured task and logs a warning if they
+// do not match.
+func checkNodeVersion(ctx context.Context, opts api.KindOptions) {
+	nodeVersion, ok := opts["nodeVersion"].(string)
+	if !ok {
+		return
+	}
+
+	v, err := semver.ParseTolerant(nodeVersion)
+	if err != nil {
+		logger.Debug("Unable to parse node version (%s): ignoring", nodeVersion)
+		return
+	}
+
+	cmd := exec.CommandContext(ctx, "node", "--version")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Debug("failed to check node version: is node installed?")
+		return
+	}
+
+	if !strings.HasPrefix(string(out), fmt.Sprintf("v%d", v.Major)) {
+		logger.Warning("Your local version of Node (%s) does not match the version your task is configured to run against (v%s).", strings.TrimSpace(string(out)), v)
+	}
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
-	"github.com/airplanedev/cli/pkg/fs"
+	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/params"
 	"github.com/airplanedev/cli/pkg/print"
@@ -77,7 +77,7 @@ func run(ctx context.Context, cfg config) error {
 	task, err := client.GetTask(ctx, cfg.task)
 	if _, ok := err.(*api.TaskMissingError); ok {
 		// If there's no task matching that slug, try it as a file path instead.
-		if !fs.Exists(cfg.task) {
+		if !fsx.Exists(cfg.task) {
 			return errors.Errorf("Unable to execute %s. No matching file or task slug.", cfg.task)
 		}
 
@@ -105,34 +105,24 @@ func run(ctx context.Context, cfg config) error {
 		ParamValues: make(api.Values),
 	}
 
-	if len(cfg.args) > 0 {
-		// If args have been passed in, parse them as flags
-		set := flagset(task, req.ParamValues)
-		if err := set.Parse(cfg.args); err != nil {
-			if errors.Is(err, flag.ErrHelp) {
-				return nil
-			}
-			return err
-		}
-	} else {
-		// Otherwise, try to prompt for parameters
-		if err := promptForParamValues(cfg.root.Client, task, req.ParamValues); err != nil {
-			return err
-		}
-	}
+	logger.Log("Executing %s task: %s", logger.Bold(task.Name), logger.Gray(client.TaskURL(task.Slug)))
 
-	logger.Log(logger.Gray("Running: %s", task.Name))
+	req.ParamValues, err = params.CLI(cfg.args, client, task)
+	if errors.Is(err, flag.ErrHelp) {
+		return nil
+	} else if err != nil {
+		return err
+	}
 
 	w, err := client.Watcher(ctx, req)
 	if err != nil {
 		return err
 	}
 
-	logger.Log(logger.Gray("Queued: %s", client.RunURL(w.RunID())))
+	logger.Log(logger.Gray("Queued run: %s", client.RunURL(w.RunID())))
 
 	var state api.RunState
 	agentPrefix := "[agent]"
-	outputPrefix := "airplane_output"
 
 	for {
 		if state = w.Next(); state.Err() != nil {
@@ -144,12 +134,9 @@ func run(ctx context.Context, cfg config) error {
 			if strings.HasPrefix(l.Text, agentPrefix) {
 				// De-emphasize agent logs and remove prefix
 				loggedText = logger.Gray(strings.TrimLeft(strings.TrimPrefix(l.Text, agentPrefix), " "))
-			} else if strings.HasPrefix(l.Text, outputPrefix) {
-				// De-emphasize outputs appearing in logs
-				loggedText = logger.Gray(l.Text)
 			} else {
 				// Try to leave user logs alone, so they can apply their own colors
-				loggedText = l.Text
+				loggedText = fmt.Sprintf("[%s] %s", logger.Gray("log"), l.Text)
 			}
 			logger.Log(loggedText)
 		}
@@ -165,48 +152,12 @@ func run(ctx context.Context, cfg config) error {
 
 	print.Outputs(state.Outputs)
 
-	status := string(state.Status)
 	switch state.Status {
-	case api.RunSucceeded:
-		status = logger.Green(status)
-	case api.RunFailed, api.RunCancelled:
-		status = logger.Red(status)
-	}
-	logger.Log(logger.Bold(status))
-
-	if state.Failed() {
+	case api.RunFailed:
 		return errors.New("Run has failed")
 	}
 
 	return nil
-}
-
-// Flagset returns a new flagset from the given task parameters.
-func flagset(task api.Task, args api.Values) *flag.FlagSet {
-	var set = flag.NewFlagSet(task.Name, flag.ContinueOnError)
-
-	set.Usage = func() {
-		logger.Log("\n%s Usage:", task.Name)
-		set.VisitAll(func(f *flag.Flag) {
-			logger.Log("  --%s %s (default: %q)", f.Name, f.Usage, f.DefValue)
-		})
-		logger.Log("")
-	}
-
-	for i := range task.Parameters {
-		// Scope p here (& not above) so we can use it in the closure.
-		// See also: https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
-		p := task.Parameters[i]
-		set.Func(p.Slug, p.Desc, func(v string) (err error) {
-			args[p.Slug], err = params.ParseInput(p, v)
-			if err != nil {
-				return errors.Wrap(err, "converting input to API value")
-			}
-			return
-		})
-	}
-
-	return set
 }
 
 // SlugFrom returns the slug from the given file.
@@ -252,7 +203,7 @@ func slugFromScript(file string) (string, error) {
 
 	slug, ok := runtime.Slug(code)
 	if !ok {
-		return "", fmt.Errorf("cannot find a slug in %s", file)
+		return "", runtime.ErrNotLinked{Path: file}
 	}
 
 	return slug, nil

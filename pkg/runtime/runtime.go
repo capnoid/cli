@@ -8,12 +8,13 @@
 package runtime
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
 
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/fs"
+	"github.com/airplanedev/cli/pkg/fsx"
 )
 
 var (
@@ -60,6 +61,21 @@ type Interface interface {
 	// FormatComment formats a string into a comment using
 	// the relevant comment characters for this runtime.
 	FormatComment(s string) string
+
+	// PrepareRun should prepare the
+	PrepareRun(ctx context.Context, opts PrepareRunOptions) ([]string, error)
+}
+
+type PrepareRunOptions struct {
+	// Path is the file path leading to the task's entrypoint.
+	Path string
+
+	// ParamValues specifies the user-provided parameter values to
+	// execute this run with.
+	ParamValues api.Values
+
+	// KindOptions specifies any runtime-specific task configuration.
+	KindOptions api.KindOptions
 }
 
 // Runtimes is a collection of registered runtimes.
@@ -95,7 +111,7 @@ const (
 func Pathof(parent, filename string) (string, error) {
 	dst := filepath.Join(parent, filename)
 
-	if !fs.Exists(dst) {
+	if !fsx.Exists(dst) {
 		next := filepath.Dir(parent)
 		if next == "." || next == sep {
 			return "", ErrMissing
