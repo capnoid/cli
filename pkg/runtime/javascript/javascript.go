@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/airplanedev/cli/pkg/api"
@@ -123,7 +124,6 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	if err != nil {
 		return nil, err
 	}
-	workdir := filepath.Dir(opts.Path)
 
 	if err := os.Mkdir(filepath.Join(root, ".airplane"), os.ModeDir|0777); err != nil && !os.IsExist(err) {
 		return nil, errors.Wrap(err, "creating .airplane directory")
@@ -155,20 +155,23 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	} else {
 		cmd = exec.CommandContext(ctx, "npm", "install", "--save-dev", "@types/node")
 	}
-	cmd.Dir = workdir
+	cmd.Dir = filepath.Dir(opts.Path)
+	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
 	if err := cmd.Run(); err != nil {
 		return nil, errors.New("failed to add @types/node dependency")
 	}
 
+	start := time.Now()
 	cmd = exec.CommandContext(ctx, "tsc", build.NodeTscArgs(".", opts.KindOptions)...)
 	cmd.Dir = root
+	logger.Debug("Running %s (in %s)", logger.Bold(strings.Join(cmd.Args, " ")), root)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		logger.Log(strings.TrimSpace(string(out)))
-		logger.Debug("\nCommand: %s", strings.Join(cmd.Args, " "))
 
 		return nil, errors.Errorf("failed to compile %s", opts.Path)
 	}
+	logger.Debug("Compiled JS in %s", logger.Bold(time.Since(start).String()))
 
 	pv, err := json.Marshal(opts.ParamValues)
 	if err != nil {
@@ -185,6 +188,7 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 // enforce that the correct version of tsc is used.
 func checkTscInstalled(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "tsc", "--version")
+	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
 	if err := cmd.Run(); err != nil {
 		return errors.New(heredoc.Doc(`
 			It looks like the typescript CLI (tsc) is not installed.
@@ -216,6 +220,7 @@ func checkNodeVersion(ctx context.Context, opts api.KindOptions) {
 	}
 
 	cmd := exec.CommandContext(ctx, "node", "--version")
+	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		logger.Debug("failed to check node version: is node installed?")
