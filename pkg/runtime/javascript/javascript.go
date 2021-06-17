@@ -18,6 +18,7 @@ import (
 	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
+	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/blang/semver/v4"
 	"github.com/pkg/errors"
 )
@@ -146,27 +147,21 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		return nil, errors.Wrap(err, "cleaning dist folder")
 	}
 
-	if fsx.AssertExistsAll(filepath.Join(root, "package.json")) != nil {
-		if err := os.WriteFile(filepath.Join(root, "package.json"), []byte("{}"), 0777); err != nil {
-			return nil, errors.Wrap(err, "creating default package.json")
+	// Confirm we have a `package.json`, otherwise we might install shim dependencies
+	// in the wrong folder.
+	hasPkgJSON := fsx.AssertExistsAll(filepath.Join(root, "package.json")) == nil
+	if !hasPkgJSON {
+		return nil, errors.New("a package.json is missing")
+	}
+
+	if !build.HasNodeShimDeps(root) {
+		if err := installShimDeps(ctx, root, opts.Path); err != nil {
+			return nil, err
 		}
 	}
 
-	isYarn := fsx.AssertExistsAll(filepath.Join(root, "yarn.lock")) == nil
-	var cmd *exec.Cmd
-	if isYarn {
-		cmd = exec.CommandContext(ctx, "yarn", "add", "-D", "@types/node")
-	} else {
-		cmd = exec.CommandContext(ctx, "npm", "install", "--save-dev", "@types/node")
-	}
-	cmd.Dir = filepath.Dir(opts.Path)
-	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
-	if err := cmd.Run(); err != nil {
-		return nil, errors.New("failed to add @types/node dependency")
-	}
-
 	start := time.Now()
-	cmd = exec.CommandContext(ctx, "tsc", build.NodeTscArgs(".", opts.KindOptions)...)
+	cmd := exec.CommandContext(ctx, "tsc", build.NodeTscArgs(".", opts.KindOptions)...)
 	cmd.Dir = root
 	logger.Debug("Running %s (in %s)", logger.Bold(strings.Join(cmd.Args, " ")), root)
 	out, err := cmd.CombinedOutput()
@@ -183,6 +178,36 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	}
 
 	return []string{"node", filepath.Join(root, ".airplane/dist/.airplane/shim.js"), string(pv)}, nil
+}
+
+func installShimDeps(ctx context.Context, root, path string) error {
+	isYarn := fsx.AssertExistsAll(filepath.Join(root, "yarn.lock")) == nil
+	var cmd *exec.Cmd
+	if isYarn {
+		cmd = exec.CommandContext(ctx, "yarn", "add", "-D", "@types/node")
+	} else {
+		cmd = exec.CommandContext(ctx, "npm", "install", "--save-dev", "@types/node")
+	}
+	cmd.Dir = filepath.Dir(path)
+
+	// Confirm with the user before installing the shim dependencies.
+	if utils.CanPrompt() {
+		logger.Log("Airplane needs to run %s before it can build your task.", logger.Bold(strings.Join(cmd.Args, " ")))
+		confirmed, err := utils.Confirm("Run now?")
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			return errors.New("unable to run without shim dependencies")
+		}
+	}
+
+	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
+	if err := cmd.Run(); err != nil {
+		return errors.New("failed to add shim dependencies")
+	}
+
+	return nil
 }
 
 // checkTscInstalled will error if the tsc CLI is not installed.
