@@ -9,11 +9,11 @@ package runtime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path/filepath"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -104,11 +104,27 @@ func Register(ext string, r Interface) {
 	runtimes[ext] = r
 }
 
-// Lookup returns a runtime by path.
-func Lookup(path string) (Interface, bool) {
-	ext := filepath.Ext(path)
-	r, ok := runtimes[ext]
-	return r, ok
+// Lookup returns a runtime by kind and path.
+// If an extension match is found, use that runtime. Otherwise rely on the task kind.
+func Lookup(kind api.TaskKind, path string) (Interface, error) {
+	pathExt := filepath.Ext(path)
+	possible := []Interface{}
+	for ext, runtime := range runtimes {
+		if runtime.Kind() != kind {
+			continue
+		}
+		if pathExt == ext {
+			return runtime, nil
+		}
+		possible = append(possible, runtime)
+	}
+	if len(possible) > 1 {
+		return nil, errors.Errorf("found %d runtimes for task type, expecting 1", len(possible))
+	}
+	if len(possible) == 0 {
+		return nil, errors.New("did not find any runtimes for task type")
+	}
+	return possible[0], nil
 }
 
 // SuggestExt returns the default extension for a given TaskKind, if any.
