@@ -27,7 +27,7 @@ func init() {
 var code = template.Must(template.New("sh").Parse(`#!/bin/bash
 {{.Comment}}
 
-# Params are in environment variables as AP_{SLUG}, e.g. AP_USER_ID
+# Params are in environment variables as PARAM_{SLUG}, e.g. PARAM_USER_ID
 echo "Hello World!"
 echo "Printing env for debugging purposes:"
 env
