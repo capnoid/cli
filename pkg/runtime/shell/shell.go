@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,10 +43,10 @@ type data struct {
 type Runtime struct{}
 
 // PrepareRun implementation.
-func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) ([]string, error) {
+func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) (rexprs []string, rcloser io.Closer, rerr error) {
 	root, err := r.Root(opts.Path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if dockerfilePath := build.FindDockerfile(root); dockerfilePath != "" {
@@ -54,34 +55,46 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		logger.Warning("The script will run inside your local machine environment.")
 	}
 
-	if err := os.Mkdir(filepath.Join(root, ".airplane"), os.ModeDir|0777); err != nil && !os.IsExist(err) {
-		return nil, errors.Wrap(err, "creating .airplane directory")
+	tmpdir := filepath.Join(root, ".airplane")
+	if err := os.Mkdir(tmpdir, os.ModeDir|0777); err != nil && !os.IsExist(err) {
+		return nil, nil, errors.Wrap(err, "creating .airplane directory")
 	}
+	closer := runtime.CloseFunc(func() error {
+		logger.Debug("Cleaning up temporary directory...")
+		return errors.Wrap(os.RemoveAll(tmpdir), "unable to remove temporary directory")
+	})
+	defer func() {
+		// If we encountered an error before returning, then we're responsible
+		// for performing our own cleanup.
+		if rerr != nil {
+			closer.Close()
+		}
+	}()
 
 	shim := build.ShellShim()
-	if err := os.WriteFile(filepath.Join(root, ".airplane/shim.sh"), []byte(shim), 0644); err != nil {
-		return nil, errors.Wrap(err, "writing shim file")
+	if err := os.WriteFile(filepath.Join(tmpdir, "shim.sh"), []byte(shim), 0644); err != nil {
+		return nil, nil, errors.Wrap(err, "writing shim file")
 	}
 
 	entrypoint, err := filepath.Rel(root, opts.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "entrypoint is not within the task root")
+		return nil, nil, errors.Wrap(err, "entrypoint is not within the task root")
 	}
 
 	cmd := []string{
-		"bash", filepath.Join(root, ".airplane/shim.sh"),
+		"bash", filepath.Join(tmpdir, "shim.sh"),
 		filepath.Join(root, entrypoint),
 	}
 	// TODO: this is a rough approximation of how interpolateParameters works in prod
-	for slug, _ := range opts.ParamValues {
+	for slug := range opts.ParamValues {
 		tmpl := fmt.Sprintf("%s={{%s}}", slug, slug)
 		val, err := handlebars.Render(tmpl, opts.ParamValues)
 		if err != nil {
-			return nil, errors.Wrap(err, "rendering shell command")
+			return nil, nil, errors.Wrap(err, "rendering shell command")
 		}
 		cmd = append(cmd, val)
 	}
-	return cmd, nil
+	return cmd, closer, nil
 }
 
 // Generate implementation.

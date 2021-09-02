@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,39 +42,51 @@ type data struct {
 type Runtime struct{}
 
 // PrepareRun implementation.
-func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) ([]string, error) {
+func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) (rexprs []string, rcloser io.Closer, rerr error) {
 	if err := checkPythonInstalled(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	root, err := r.Root(opts.Path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := os.Mkdir(filepath.Join(root, ".airplane"), os.ModeDir|0777); err != nil && !os.IsExist(err) {
-		return nil, errors.Wrap(err, "creating .airplane directory")
+	tmpdir := filepath.Join(root, ".airplane")
+	if err := os.Mkdir(tmpdir, os.ModeDir|0777); err != nil && !os.IsExist(err) {
+		return nil, nil, errors.Wrap(err, "creating .airplane directory")
 	}
+	closer := runtime.CloseFunc(func() error {
+		logger.Debug("Cleaning up temporary directory...")
+		return errors.Wrap(os.RemoveAll(tmpdir), "unable to remove temporary directory")
+	})
+	defer func() {
+		// If we encountered an error before returning, then we're responsible
+		// for performing our own cleanup.
+		if rerr != nil {
+			closer.Close()
+		}
+	}()
 
 	entrypoint, err := filepath.Rel(root, opts.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "entrypoint is not within the task root")
+		return nil, nil, errors.Wrap(err, "entrypoint is not within the task root")
 	}
 	shim, err := build.PythonShim(root, entrypoint)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := os.WriteFile(filepath.Join(root, ".airplane/shim.py"), []byte(shim), 0644); err != nil {
-		return nil, errors.Wrap(err, "writing shim file")
+	if err := os.WriteFile(filepath.Join(tmpdir, "shim.py"), []byte(shim), 0644); err != nil {
+		return nil, nil, errors.Wrap(err, "writing shim file")
 	}
 
 	pv, err := json.Marshal(opts.ParamValues)
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing param values")
+		return nil, nil, errors.Wrap(err, "serializing param values")
 	}
 
-	return []string{"python3", filepath.Join(root, ".airplane/shim.py"), string(pv)}, nil
+	return []string{"python3", filepath.Join(tmpdir, "shim.py"), string(pv)}, closer, nil
 }
 
 // Checks for python3 binary, as per PEP 0394:

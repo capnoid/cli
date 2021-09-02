@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,42 +122,54 @@ func (r Runtime) FormatComment(s string) string {
 	return strings.Join(lines, "\n")
 }
 
-func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) ([]string, error) {
+func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) (rexprs []string, rcloser io.Closer, rerr error) {
 	checkNodeVersion(ctx, opts.KindOptions)
 	isTscNpx, err := checkTscInstalled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	root, err := r.Root(opts.Path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := os.Mkdir(filepath.Join(root, ".airplane"), os.ModeDir|0777); err != nil && !os.IsExist(err) {
-		return nil, errors.Wrap(err, "creating .airplane directory")
+	tmpdir := filepath.Join(root, ".airplane")
+	if err := os.Mkdir(tmpdir, os.ModeDir|0777); err != nil && !os.IsExist(err) {
+		return nil, nil, errors.Wrap(err, "creating .airplane directory")
 	}
+	closer := runtime.CloseFunc(func() error {
+		logger.Debug("Cleaning up temporary directory...")
+		return errors.Wrap(os.RemoveAll(tmpdir), "unable to remove temporary directory")
+	})
+	defer func() {
+		// If we encountered an error before returning, then we're responsible
+		// for performing our own cleanup.
+		if rerr != nil {
+			closer.Close()
+		}
+	}()
 
 	entrypoint, err := filepath.Rel(root, opts.Path)
 	if err != nil {
-		return nil, errors.Wrap(err, "entrypoint is not within the task root")
+		return nil, nil, errors.Wrap(err, "entrypoint is not within the task root")
 	}
 	shim, err := build.NodeShim(entrypoint)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := os.WriteFile(filepath.Join(root, ".airplane/shim.ts"), []byte(shim), 0644); err != nil {
-		return nil, errors.Wrap(err, "writing shim file")
+	if err := os.WriteFile(filepath.Join(tmpdir, "shim.ts"), []byte(shim), 0644); err != nil {
+		return nil, nil, errors.Wrap(err, "writing shim file")
 	}
 
 	// Install the dependencies we need for our shim file:
 	pjson, err := build.GenShimPackageJSON()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if err := os.WriteFile(filepath.Join(root, ".airplane/package.json"), pjson, 0644); err != nil {
-		return nil, errors.Wrap(err, "writing shim package.json")
+	if err := os.WriteFile(filepath.Join(tmpdir, "package.json"), pjson, 0644); err != nil {
+		return nil, nil, errors.Wrap(err, "writing shim package.json")
 	}
 	cmd := exec.CommandContext(ctx, "npm", "install")
 	cmd.Dir = filepath.Join(root, ".airplane")
@@ -164,28 +177,28 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		logger.Log(strings.TrimSpace(string(out)))
-		return nil, errors.New("failed to install shim deps")
+		return nil, nil, errors.New("failed to install shim deps")
 	}
 
 	if content, err := build.GenTSConfig(root, opts.Path, opts.KindOptions); err != nil {
-		return nil, err
-	} else if err := os.WriteFile(filepath.Join(root, ".airplane/tsconfig.json"), content, 0644); err != nil {
-		return nil, errors.Wrap(err, "writing tsconfig")
+		return nil, nil, err
+	} else if err := os.WriteFile(filepath.Join(tmpdir, "tsconfig.json"), content, 0644); err != nil {
+		return nil, nil, errors.Wrap(err, "writing tsconfig")
 	}
 
-	if err := os.RemoveAll(filepath.Join(root, ".airplane/dist")); err != nil {
-		return nil, errors.Wrap(err, "cleaning dist folder")
+	if err := os.RemoveAll(filepath.Join(tmpdir, "dist")); err != nil {
+		return nil, nil, errors.Wrap(err, "cleaning dist folder")
 	}
 
 	// Confirm we have a `package.json`, otherwise we might install shim dependencies
 	// in the wrong folder.
 	hasPkgJSON := fsx.AssertExistsAll(filepath.Join(root, "package.json")) == nil
 	if !hasPkgJSON {
-		return nil, errors.New("a package.json is missing")
+		return nil, nil, errors.New("a package.json is missing")
 	}
 
 	start := time.Now()
-	tscArgs := []string{"--pretty", "-p", filepath.Join(root, ".airplane")}
+	tscArgs := []string{"--pretty", "-p", tmpdir}
 	if isTscNpx {
 		cmd = exec.CommandContext(ctx, "npx", append([]string{"-p", "typescript", "--no", "tsc", "--"}, tscArgs...)...)
 	} else {
@@ -196,16 +209,16 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		logger.Log(strings.TrimSpace(string(out)))
-		return nil, errors.Errorf("failed to compile %s", opts.Path)
+		return nil, nil, errors.Errorf("failed to compile %s", opts.Path)
 	}
 	logger.Debug("Compiled JS in %s", logger.Bold(time.Since(start).String()))
 
 	pv, err := json.Marshal(opts.ParamValues)
 	if err != nil {
-		return nil, errors.Wrap(err, "serializing param values")
+		return nil, nil, errors.Wrap(err, "serializing param values")
 	}
 
-	return []string{"node", filepath.Join(root, ".airplane/dist/.airplane/shim.js"), string(pv)}, nil
+	return []string{"node", filepath.Join(tmpdir, "dist/.airplane/shim.js"), string(pv)}, closer, nil
 }
 
 // checkTscInstalled will verify that the Typescript CLI is installed.

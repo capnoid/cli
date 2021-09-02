@@ -100,13 +100,16 @@ func run(ctx context.Context, cfg config) error {
 		return errors.Wrapf(err, "absolute path of %s", cfg.file)
 	}
 
-	cmds, err := r.PrepareRun(ctx, runtime.PrepareRunOptions{
+	cmds, closer, err := r.PrepareRun(ctx, runtime.PrepareRunOptions{
 		Path:        path,
 		ParamValues: paramValues,
 		KindOptions: task.KindOptions,
 	})
 	if err != nil {
 		return err
+	}
+	if closer != nil {
+		defer closer.Close()
 	}
 
 	cmd := exec.CommandContext(ctx, cmds[0], cmds[1:]...)

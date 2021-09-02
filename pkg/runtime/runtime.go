@@ -10,6 +10,7 @@ package runtime
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 
 	"github.com/airplanedev/cli/pkg/api"
@@ -70,11 +71,15 @@ type Interface interface {
 	// and prepare the script to be run.
 	//
 	// On success the method returns a slice that represents an `cmd.Exec`
-	// options which contains the command to be run and its arguments.
+	// options which contains the command to be run and its arguments. It
+	// should also return an io.Closer that will be called when the local
+	// run has completed. If not needed, a nil closer can be returned. If
+	// an error is encountered during PrepareRun, the runtime should perform
+	// its own cleanup.
 	//
 	// If running the script locally is not supported the method returns
 	// an `ErrNotImplemented`.
-	PrepareRun(ctx context.Context, opts PrepareRunOptions) ([]string, error)
+	PrepareRun(ctx context.Context, opts PrepareRunOptions) ([]string, io.Closer, error)
 }
 
 type PrepareRunOptions struct {
@@ -135,4 +140,16 @@ func SuggestExt(kind api.TaskKind) string {
 		}
 	}
 	return ""
+}
+
+func CloseFunc(f func() error) io.Closer {
+	return closer{f: f}
+}
+
+type closer struct {
+	f func() error
+}
+
+func (c closer) Close() error {
+	return c.f()
 }
