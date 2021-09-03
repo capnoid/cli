@@ -1,9 +1,5 @@
 {
-  "extends": [
-    "config:base",
-    "group:allNonMajor"
-  ],
-  "postUpdateOptions": [
-    "gomodTidy"
-  ]
+  "extends": ["config:base", "group:allNonMajor"],
+  "labels": ["merge"],
+  "postUpdateOptions": ["gomodTidy"]
 }
