@@ -159,13 +159,14 @@ type Type string
 
 // All Parameter types.
 const (
-	TypeString   Type = "string"
-	TypeBoolean  Type = "boolean"
-	TypeUpload   Type = "upload"
-	TypeInteger  Type = "integer"
-	TypeFloat    Type = "float"
-	TypeDate     Type = "date"
-	TypeDatetime Type = "datetime"
+	TypeString    Type = "string"
+	TypeBoolean   Type = "boolean"
+	TypeUpload    Type = "upload"
+	TypeInteger   Type = "integer"
+	TypeFloat     Type = "float"
+	TypeDate      Type = "date"
+	TypeDatetime  Type = "datetime"
+	TypeConfigVar Type = "configvar"
 )
 
 // Parameter represents a task parameter.

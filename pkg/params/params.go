@@ -97,6 +97,12 @@ func ParseInput(param api.Parameter, in string) (interface{}, error) {
 		}
 		return nil, nil
 
+	case api.TypeConfigVar:
+		return map[string]interface{}{
+			"__airplaneType": "configvar",
+			"name":           in,
+		}, nil
+
 	default:
 		return in, nil
 	}
