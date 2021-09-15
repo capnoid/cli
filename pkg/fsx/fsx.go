@@ -19,7 +19,7 @@ func Exists(path string) bool {
 func AssertExistsAll(paths ...string) error {
 	for _, p := range paths {
 		if _, err := os.Stat(p); os.IsNotExist(err) {
-			return fmt.Errorf("build: the file %s is required", path.Base(p))
+			return fmt.Errorf("could not find file %s", path.Base(p))
 		}
 	}
 	return nil

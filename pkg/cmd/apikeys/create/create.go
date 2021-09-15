@@ -51,14 +51,13 @@ func run(ctx context.Context, c *cli.Config, name string) error {
 
 	apiKey := resp.APIKey
 	logger.Log("  Done!")
+	logger.Debug("  API key ID: %s", apiKey.ID)
 	if isatty.IsTerminal(os.Stdout.Fd()) {
-		logger.Log(`  Save this somewhere safe, as you won't be able to retrieve it later:
+		logger.Log(`
+  Save this somewhere safe, as you won't be able to retrieve it later:
 
   %s
-
-  Key ID: %s
-  Team ID: %s
-`, logger.Blue(apiKey.Key), apiKey.ID, apiKey.TeamID)
+`, logger.Blue(apiKey.Key))
 	} else {
 		if err := json.NewEncoder(os.Stdout).Encode(apiKey); err != nil {
 			return errors.Wrap(err, "encoding API key to JSON")
