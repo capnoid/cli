@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -26,7 +27,8 @@ import (
 // Config is the execute config.
 type config struct {
 	root *cli.Config
-	task string // Could be a file, yaml definition or a slug.
+	// task reference could be a script file, yaml definition or a slug.
+	task string
 	args []string
 }
 
@@ -73,11 +75,18 @@ func New(c *cli.Config) *cobra.Command {
 func run(ctx context.Context, cfg config) error {
 	var client = cfg.root.Client
 
-	slug, err := slugFrom(cfg.task)
-	if err != nil {
-		return err
+	var slug string
+	var err error
+	if f, err := os.Stat(cfg.task); errors.Is(err, os.ErrNotExist) || f.IsDir() {
+		// Not a file, assume it's a slug.
+		slug = cfg.task
+	} else {
+		// It's a file, look up the slug form the file.
+		slug, err = slugFrom(cfg.task)
+		if err != nil {
+			return err
+		}
 	}
-
 	task, err := client.GetTask(ctx, slug)
 	if err != nil {
 		return err
