@@ -2,6 +2,7 @@
 
 import importlib.util as util
 import json
+import os
 import sys
 
 def run(args):
@@ -10,6 +11,7 @@ def run(args):
     if len(args) != 2:
         raise Exception("usage: python ./shim.py <args>")
 
+    os.chdir("{{.TaskRoot}}")
     spec = util.spec_from_file_location("mod.main", "{{ .Entrypoint }}")
     mod = util.module_from_spec(spec)
     spec.loader.exec_module(mod)
