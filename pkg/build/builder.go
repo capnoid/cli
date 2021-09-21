@@ -54,7 +54,7 @@ type LocalConfig struct {
 
 	// Auth represents the registry auth to use.
 	//
-	// If nil, New returns an error.
+	// If nil, Push will produce an error.
 	Auth *RegistryAuth
 
 	// BuildEnv is a map of build-time environment variables to use.
@@ -91,10 +91,6 @@ func New(c LocalConfig) (*Builder, error) {
 		c.Options = api.KindOptions{}
 	}
 
-	if c.Auth == nil {
-		return nil, fmt.Errorf("build: builder requires registry auth")
-	}
-
 	client, err := client.NewClientWithOpts(
 		client.FromEnv,
 		client.WithAPIVersionNegotiation(),
@@ -113,6 +109,10 @@ func New(c LocalConfig) (*Builder, error) {
 	}, nil
 }
 
+func (b *Builder) Close() error {
+	return b.client.Close()
+}
+
 // Build runs the docker build.
 //
 // Depending on the configured `Config.Builder` the method verifies that
@@ -122,9 +122,11 @@ func New(c LocalConfig) (*Builder, error) {
 // and adds it to the tree, it passes the tree as the build context
 // and initializes the build.
 func (b *Builder) Build(ctx context.Context, taskID, version string) (*Response, error) {
-	var repo = b.auth.Repo
-	var name = "task-" + sanitizeTaskID(taskID)
-	var uri = repo + "/" + name + ":" + version
+	name := "task-" + sanitizeTaskID(taskID)
+	uri := name + ":" + version
+	if b.auth != nil {
+		uri = b.auth.Repo + "/" + uri
+	}
 
 	patterns, err := ignore.DockerignorePatterns(b.root)
 	if err != nil {
@@ -209,6 +211,10 @@ func (b *Builder) Build(ctx context.Context, taskID, version string) (*Response,
 
 // Push pushes the given image.
 func (b *Builder) Push(ctx context.Context, uri string) error {
+	if b.auth == nil {
+		return errors.New("push requires registry auth")
+	}
+
 	authjson, err := json.Marshal(b.registryAuth())
 	if err != nil {
 		return err
@@ -250,6 +256,10 @@ func (b *Builder) registryAuth() types.AuthConfig {
 
 // Authconfigs returns the authconfigs to use.
 func (b *Builder) authconfigs() map[string]types.AuthConfig {
+	if b.auth == nil {
+		return map[string]types.AuthConfig{}
+	}
+
 	return map[string]types.AuthConfig{
 		b.auth.host(): b.registryAuth(),
 	}

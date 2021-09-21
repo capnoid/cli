@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -14,6 +15,7 @@ import (
 	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
+	"github.com/blang/semver"
 	"github.com/pkg/errors"
 )
 
@@ -30,6 +32,9 @@ func node(root string, options api.KindOptions) (string, error) {
 
 	// Assert that the entrypoint file exists:
 	entrypoint, _ := options["entrypoint"].(string)
+	if entrypoint == "" {
+		return "", errors.New("expected an entrypoint")
+	}
 	if err := fsx.AssertExistsAll(filepath.Join(root, entrypoint)); err != nil {
 		return "", err
 	}
@@ -214,12 +219,36 @@ func GenTSConfig(root string, entrypoint string, opts api.KindOptions) ([]byte, 
 		tsconfig.CompilerOptions.SkipLibCheck = pointers.Bool(true)
 	}
 
-	target := "es2020"
-	if opts != nil && strings.HasPrefix(opts["nodeVersion"].(string), "12") {
-		// For Node 12 (the earliest version of Node we support), we need to compile to an
-		// older version of ECMAScript.
-		target = "es2019"
+	// For older versions of Node, we need to compile to an older version of ECMAScript.
+	// The earliest version of Node we support is Node 12 which only supports ES2019:
+	// https://node.green/#ES2019
+	target := "es2019"
+	nodeMajor := func() string {
+		defaultMajor := "16"
+		if opts == nil || opts["nodeVersion"] == nil {
+			return defaultMajor
+		}
+		nv, ok := opts["nodeVersion"].(string)
+		if !ok {
+			return defaultMajor
+		}
+		v, err := semver.ParseTolerant(nv)
+		if err != nil {
+			return defaultMajor
+		}
+		return strconv.FormatUint(v.Major, 10)
+	}()
+	switch nodeMajor {
+	case "14":
+		// Node 14 supports ES2020: https://node.green/#ES2020
+		target = "es2020"
+	case "15", "16":
+		// Node 15 and 16 support ES2022: https://node.green/#ES2022
+		// However, tsc does not yet support specifying es2022, so we use esnext instead:
+		// https://github.com/microsoft/TypeScript/issues/44571
+		target = "esnext"
 	}
+
 	if utsc.CompilerOptions.Target == "" {
 		tsconfig.CompilerOptions.Target = target
 	}

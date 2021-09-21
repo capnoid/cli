@@ -1,12 +1,109 @@
 package build
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNodeBuilder(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []Test{
+		{
+			Root: "javascript/simple",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.js",
+			},
+		},
+		{
+			Root: "typescript/simple",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.ts",
+			},
+		},
+		{
+			Root: "typescript/npm",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.ts",
+			},
+		},
+		{
+			Root: "typescript/yarn",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.ts",
+			},
+		},
+		{
+			Root: "typescript/imports",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "task/main.ts",
+			},
+		},
+		{
+			Root: "typescript/noparams",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.ts",
+			},
+			// Since this example does not take parameters, override the default SearchString.
+			SearchString: "success",
+		},
+		{
+			Root: "typescript/esnext",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.ts",
+			},
+		},
+		{
+			Root: "typescript/esnext",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":        "true",
+				"entrypoint":  "main.ts",
+				"nodeVersion": "12",
+			},
+		},
+		{
+			Root: "typescript/esnext",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":        "true",
+				"entrypoint":  "main.ts",
+				"nodeVersion": "14",
+			},
+		},
+		// TODO: debug why yarn workspaces aren't working. Seems like we would need to compile
+		// pkg1 before compiling pkg2. Once we do that, add an npm workspaces variant along with
+		// JS variants.
+		// {
+		// 	Root: "typescript/yarnworkspaces",
+		// 	Kind: api.TaskKindNode,
+		// 	Options: api.KindOptions{
+		// 		"shim":       "true",
+		// 		"entrypoint": "pkg2/src/index.ts",
+		// 	},
+		// },
+	}
+
+	RunTests(t, ctx, tests)
+}
 
 func TestGenTSConfig(t *testing.T) {
 	require := require.New(t)
@@ -20,12 +117,12 @@ func TestGenTSConfig(t *testing.T) {
 		"compilerOptions": map[string]interface{}{
 			"allowJs":         true,
 			"esModuleInterop": true,
-			"lib":             []interface{}{"es2020", "dom"},
+			"lib":             []interface{}{"esnext", "dom"},
 			"module":          "commonjs",
 			"outDir":          "./dist",
 			"rootDir":         "..",
 			"skipLibCheck":    true,
-			"target":          "es2020",
+			"target":          "esnext",
 		},
 		"files": []interface{}{"./shim.ts"},
 	}, m)
@@ -39,12 +136,12 @@ func TestGenTSConfig(t *testing.T) {
 		"compilerOptions": map[string]interface{}{
 			"allowJs":         true,
 			"esModuleInterop": true,
-			"lib":             []interface{}{"es2020", "dom"},
+			"lib":             []interface{}{"esnext", "dom"},
 			"module":          "commonjs",
 			"outDir":          "./dist",
 			"rootDir":         "..",
 			"skipLibCheck":    true,
-			"target":          "es2020",
+			"target":          "esnext",
 		},
 		"files":   []interface{}{"./shim.ts"},
 		"extends": "../tsconfig.json",

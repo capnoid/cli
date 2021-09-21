@@ -111,17 +111,20 @@ func Register(ext string, r Interface) {
 
 // Lookup returns a runtime by kind and path.
 // If an extension match is found, use that runtime. Otherwise rely on the task kind.
-func Lookup(kind api.TaskKind, path string) (Interface, error) {
-	pathExt := filepath.Ext(path)
+func Lookup(path string, kind api.TaskKind) (Interface, error) {
+	ext := filepath.Ext(path)
+	if runtime, ok := runtimes[ext]; ok {
+		return runtime, nil
+	}
+
+	// There was no exact match on the extension. Fallback to checking if there
+	// is exactly one match on the task kind, which can occur for task kinds that
+	// support arbitrary extensions (f.e. shell).
 	possible := []Interface{}
-	for ext, runtime := range runtimes {
-		if runtime.Kind() != kind {
-			continue
+	for _, runtime := range runtimes {
+		if runtime.Kind() == kind {
+			possible = append(possible, runtime)
 		}
-		if pathExt == ext {
-			return runtime, nil
-		}
-		possible = append(possible, runtime)
 	}
 	if len(possible) > 1 {
 		return nil, errors.Errorf("found %d runtimes for task type, expecting 1", len(possible))

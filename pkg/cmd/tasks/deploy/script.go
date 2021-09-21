@@ -57,7 +57,7 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 	tp.taskSlug = task.Slug
 	tp.taskName = task.Name
 
-	r, err := runtime.Lookup(task.Kind, cfg.file)
+	r, err := runtime.Lookup(cfg.file, task.Kind)
 	if err != nil {
 		return errors.Wrapf(err, "cannot determine how to deploy %q - check your CLI is up to date", cfg.file)
 	}

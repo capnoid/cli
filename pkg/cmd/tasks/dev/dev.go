@@ -80,7 +80,7 @@ func run(ctx context.Context, cfg config) error {
 		return errors.Wrap(err, "getting task")
 	}
 
-	r, err := runtime.Lookup(task.Kind, cfg.file)
+	r, err := runtime.Lookup(cfg.file, task.Kind)
 	if err != nil {
 		return errors.Wrapf(err, "unsupported file type: %s", filepath.Base(cfg.file))
 	}

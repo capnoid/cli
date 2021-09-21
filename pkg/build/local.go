@@ -43,6 +43,7 @@ func local(ctx context.Context, req Request) (*Response, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "new build")
 	}
+	defer b.Close()
 
 	logger.Log("Building...")
 	resp, err := b.Build(ctx, req.TaskID, "latest")
@@ -58,7 +59,7 @@ func local(ctx context.Context, req Request) (*Response, error) {
 	return resp, nil
 }
 
-// Retreives a build env from def - looks for env vars starting with BUILD_ and either uses the
+// Retrieves a build env from def - looks for env vars starting with BUILD_ and either uses the
 // string literal or looks up the config value.
 func getBuildEnv(ctx context.Context, client *api.Client, def definitions.Definition) (map[string]string, error) {
 	buildEnv := make(map[string]string)

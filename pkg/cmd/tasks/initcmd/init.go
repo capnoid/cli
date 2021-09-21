@@ -81,7 +81,7 @@ func run(ctx context.Context, cfg config) error {
 		}
 	}
 
-	r, err := runtime.Lookup(task.Kind, cfg.file)
+	r, err := runtime.Lookup(cfg.file, task.Kind)
 	if err != nil {
 		return errors.Wrapf(err, "unable to init %q - check that your CLI is up to date", cfg.file)
 	}
