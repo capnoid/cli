@@ -64,6 +64,14 @@ func TestDev(tt *testing.T) {
 				KindOptions: api.KindOptions{"nodeVersion": "14"},
 			},
 		},
+		{
+			Kind: api.TaskKindNode,
+			Opts: runtime.PrepareRunOptions{Path: "typescript/esm/main.ts"},
+		},
+		{
+			Kind: api.TaskKindNode,
+			Opts: runtime.PrepareRunOptions{Path: "typescript/aliases/main.ts"},
+		},
 		// TODO: debug why yarn workspaces aren't working. Seems like we would need to compile
 		// pkg1 before compiling pkg2. Once we do that, add an npm workspaces variant along with
 		// JS variants.

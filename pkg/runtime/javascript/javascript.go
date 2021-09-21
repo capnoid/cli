@@ -18,8 +18,8 @@ import (
 	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
-	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/blang/semver/v4"
+	esbuild "github.com/evanw/esbuild/pkg/api"
 	"github.com/pkg/errors"
 )
 
@@ -124,10 +124,6 @@ func (r Runtime) FormatComment(s string) string {
 
 func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) (rexprs []string, rcloser io.Closer, rerr error) {
 	checkNodeVersion(ctx, opts.KindOptions)
-	isTscNpx, err := checkTscInstalled(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	root, err := r.Root(opts.Path)
 	if err != nil {
@@ -159,7 +155,7 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		return nil, nil, err
 	}
 
-	if err := os.WriteFile(filepath.Join(tmpdir, "shim.ts"), []byte(shim), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpdir, "shim.js"), []byte(shim), 0644); err != nil {
 		return nil, nil, errors.Wrap(err, "writing shim file")
 	}
 
@@ -180,12 +176,6 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		return nil, nil, errors.New("failed to install shim deps")
 	}
 
-	if content, err := build.GenTSConfig(root, opts.Path, opts.KindOptions); err != nil {
-		return nil, nil, err
-	} else if err := os.WriteFile(filepath.Join(tmpdir, "tsconfig.json"), content, 0644); err != nil {
-		return nil, nil, errors.Wrap(err, "writing tsconfig")
-	}
-
 	if err := os.RemoveAll(filepath.Join(tmpdir, "dist")); err != nil {
 		return nil, nil, errors.Wrap(err, "cleaning dist folder")
 	}
@@ -198,18 +188,25 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	}
 
 	start := time.Now()
-	tscArgs := []string{"--pretty", "-p", tmpdir}
-	if isTscNpx {
-		cmd = exec.CommandContext(ctx, "npx", append([]string{"-p", "typescript", "--no", "tsc", "--"}, tscArgs...)...)
-	} else {
-		cmd = exec.CommandContext(ctx, "tsc", tscArgs...)
+	res := esbuild.Build(esbuild.BuildOptions{
+		Bundle: true,
+
+		EntryPoints: []string{filepath.Join(tmpdir, "shim.js")},
+		Outfile:     filepath.Join(tmpdir, "dist/shim.js"),
+		Write:       true,
+
+		Platform: esbuild.PlatformNode,
+		Engines: []esbuild.Engine{
+			// esbuild is relatively generous in the node versions it supports:
+			// https://esbuild.github.io/api/#target
+			{Name: esbuild.EngineNode, Version: build.GetNodeVersion(opts.KindOptions)},
+		},
+	})
+	for _, w := range res.Warnings {
+		logger.Debug("esbuild(warn): %v", w)
 	}
-	cmd.Dir = root
-	logger.Debug("Running %s (in %s)", logger.Bold(strings.Join(cmd.Args, " ")), root)
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		logger.Log(strings.TrimSpace(string(out)))
-		return nil, nil, errors.Errorf("failed to compile %s", opts.Path)
+	for _, e := range res.Errors {
+		logger.Warning("esbuild(error): %v", e)
 	}
 	logger.Debug("Compiled JS in %s", logger.Bold(time.Since(start).String()))
 
@@ -218,56 +215,7 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		return nil, nil, errors.Wrap(err, "serializing param values")
 	}
 
-	return []string{"node", filepath.Join(tmpdir, "dist/.airplane/shim.js"), string(pv)}, closer, nil
-}
-
-// checkTscInstalled will verify that the Typescript CLI is installed.
-//
-// If not installed, it will auto-install tsc.
-//
-// Returns true if tsc is available through npx and false if available
-// on the user's PATH.
-func checkTscInstalled(ctx context.Context) (bool, error) {
-	// Check if the user has tsc installed in their local node_modules:
-	// note: --no will prevent installing typescript if not already installed.
-	cmd := exec.CommandContext(ctx, "npx", "-p", "typescript", "--no", "tsc", "--", "--version")
-	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
-	if out, err := cmd.CombinedOutput(); err == nil {
-		logger.Debug("TypeScript version: %s", strings.TrimPrefix(strings.TrimSpace(string(out)), "Version "))
-		// tsc is installed, return early
-		return true, nil
-	}
-
-	// Otherwise, try and see if they have it installed globally.
-	cmd = exec.CommandContext(ctx, "tsc", "--version")
-	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
-	if out, err := cmd.CombinedOutput(); err == nil {
-		logger.Debug("TypeScript version: %s", strings.TrimPrefix(strings.TrimSpace(string(out)), "Version "))
-		// tsc is installed, return early
-		return false, nil
-	}
-
-	// Typescript is not installed. Confirm with the user if they are
-	// okay with installing it.
-	cmd = exec.CommandContext(ctx, "npm", "install", "--global", "typescript")
-	if utils.CanPrompt() {
-		logger.Log("Airplane needs to run %s to install the TypeScript CLI.", logger.Bold(strings.Join(cmd.Args, " ")))
-		confirmed, err := utils.Confirm("Run now?")
-		if err != nil {
-			return false, err
-		}
-		if !confirmed {
-			return false, errors.New("unable to run without the TypeScript CLI")
-		}
-	}
-
-	logger.Debug("Running %s", logger.Bold(strings.Join(cmd.Args, " ")))
-	if err := cmd.Run(); err != nil {
-		return false, errors.Wrap(err, "installing tsc")
-	}
-
-	// Since we installed tsc globally, return false.
-	return false, nil
+	return []string{"node", res.OutputFiles[0].Path, string(pv)}, closer, nil
 }
 
 // checkNodeVersion compares the major version of the currently installed

@@ -23,6 +23,15 @@ export default async function(params: Params) {
     airplane.output("try", "catch")
   }
 
+  const sayings = {
+    "english": {
+      "hello": "hi"
+    }
+  }
+  for (const lang of ["english", "spanish"]) {
+    airplane.output("saying", sayings[lang]?.hello) // optional chaining (es2020)
+  }
+
   // TODO: polyfill JS functionality so older versions of Node can access
   // 
   // const foo = "👋 <id> <id> <id>"

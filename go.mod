@@ -11,12 +11,12 @@ require (
 	github.com/alecthomas/jsonschema v0.0.0-20210911035550-29dd2c10c8e9
 	github.com/andybalholm/brotli v1.0.3 // indirect
 	github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible
-	github.com/blang/semver v3.5.1+incompatible
 	github.com/blang/semver/v4 v4.0.0
 	github.com/containerd/continuity v0.0.0-20210313171317-968621f0704d // indirect
 	github.com/docker/docker v20.10.5+incompatible
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0
+	github.com/evanw/esbuild v0.12.28
 	github.com/fatih/color v1.10.0
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/go-git/go-git/v5 v5.2.0
@@ -48,7 +48,6 @@ require (
 	github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c // indirect
 	golang.org/x/crypto v0.0.0-20201117144127-c1f2f97bffc9 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	golang.org/x/sys v0.0.0-20210309074719-68d13333faf2 // indirect
 	golang.org/x/text v0.3.5 // indirect
 	gopkg.in/segmentio/analytics-go.v3 v3.1.0
 	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
