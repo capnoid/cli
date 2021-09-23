@@ -13,7 +13,7 @@ function check_gotidy() {
     cp go.mod "${TMP_GOMOD}"
     cp go.sum "${TMP_GOSUM}"
 
-    go mod tidy
+    go mod tidy -go=1.17
 
     # Diff against snapshot
     DIFF_MOD=$(diff -u "${TMP_GOMOD}" go.mod)
