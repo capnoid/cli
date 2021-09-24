@@ -120,9 +120,12 @@ func node(root string, options api.KindOptions) (string, error) {
 		RUN npm install
 		{{end}}
 
+		# --external:pg-native temporarily fixes issue where pg requires pg-native and esbuild
+		# fails when it's not installed (it's an optional dependency).
 		RUN {{.InlineShim}} > /airplane/.airplane/shim.js && \
 			esbuild /airplane/.airplane/shim.js \
 				--bundle \
+				--external:pg-native \
 				--platform=node \
 				--target=node{{.NodeVersion}} \
 				--outfile=/airplane/.airplane/dist/shim.js

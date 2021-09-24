@@ -195,6 +195,9 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		Outfile:     filepath.Join(tmpdir, "dist/shim.js"),
 		Write:       true,
 
+		// External pg-native temporarily fixes issue where pg requires pg-native and esbuild
+		// fails when it's not installed (it's an optional dependency).
+		External: []string{"pg-native"},
 		Platform: esbuild.PlatformNode,
 		Engines: []esbuild.Engine{
 			// esbuild is relatively generous in the node versions it supports:
