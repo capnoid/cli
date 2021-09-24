@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -99,10 +98,9 @@ func updateKindAndOptions(ctx context.Context, client *api.Client, def definitio
 		kindOptions["shim"] = "true"
 	}
 
-	// Make sure we are using `/` regardless of the OS.
-	if ep, ok := kindOptions["entrypoint"].(string); ok && runtime.GOOS == "windows" {
-		segments := filepath.SplitList(ep)
-		kindOptions["entrypoint"] = path.Join(segments...)
+	// Normalize entrypoint to `/` regardless of OS.
+	if ep, ok := kindOptions["entrypoint"].(string); ok {
+		kindOptions["entrypoint"] = filepath.Clean(filepath.ToSlash(ep))
 	}
 
 	_, err = client.UpdateTask(ctx, api.UpdateTaskRequest{
