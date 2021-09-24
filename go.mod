@@ -36,7 +36,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/otiai10/copy v1.6.0
 	github.com/pkg/errors v0.9.1
-	github.com/sabhiram/go-gitignore v0.0.0-20201211210132-54b8a0bf510f
+	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	github.com/segmentio/backo-go v0.0.0-20200129164019-23eae7c10bd3 // indirect
 	github.com/segmentio/events/v2 v2.4.0
 	github.com/segmentio/ksuid v1.0.4
