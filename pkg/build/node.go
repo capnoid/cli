@@ -35,6 +35,8 @@ func node(root string, options api.KindOptions) (string, error) {
 	}
 
 	workdir, _ := options["workdir"].(string)
+	pathPackageJSON := filepath.Join(root, "package.json")
+	pathYarnLock := filepath.Join(root, "yarn.lock")
 	cfg := struct {
 		Workdir               string
 		Base                  string
@@ -43,13 +45,28 @@ func node(root string, options api.KindOptions) (string, error) {
 		InlineShim            string
 		InlineShimPackageJSON string
 		NodeVersion           string
+		ExternalFlags         string
 	}{
 		Workdir:        workdir,
-		HasPackageJSON: fsx.AssertExistsAll(filepath.Join(root, "package.json")) == nil,
-		IsYarn:         fsx.AssertExistsAll(filepath.Join(root, "yarn.lock")) == nil,
+		HasPackageJSON: fsx.AssertExistsAll(pathPackageJSON) == nil,
+		IsYarn:         fsx.AssertExistsAll(pathYarnLock) == nil,
 		// esbuild is relatively generous in the node versions it supports:
 		// https://esbuild.github.io/api/#target
 		NodeVersion: GetNodeVersion(options),
+	}
+
+	// Workaround to get esbuild to not bundle dependencies.
+	// See build.ExternalPackages for details.
+	if cfg.HasPackageJSON {
+		deps, err := ExternalPackages(pathPackageJSON)
+		if err != nil {
+			return "", err
+		}
+		var flags []string
+		for _, dep := range deps {
+			flags = append(flags, fmt.Sprintf("--external:%s", dep))
+		}
+		cfg.ExternalFlags = strings.Join(flags, " ")
 	}
 
 	if !strings.HasPrefix(cfg.Workdir, "/") {
@@ -120,13 +137,10 @@ func node(root string, options api.KindOptions) (string, error) {
 		RUN npm install
 		{{end}}
 
-		# --external:pg-native temporarily fixes issue where pg requires pg-native and esbuild
-		# fails when it's not installed (it's an optional dependency).
 		RUN {{.InlineShim}} > /airplane/.airplane/shim.js && \
 			esbuild /airplane/.airplane/shim.js \
 				--bundle \
-				--external:pg-native \
-				--platform=node \
+				--platform=node {{.ExternalFlags}} \
 				--target=node{{.NodeVersion}} \
 				--outfile=/airplane/.airplane/dist/shim.js
 		ENTRYPOINT ["node", "/airplane/.airplane/dist/shim.js"]

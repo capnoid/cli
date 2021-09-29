@@ -103,6 +103,14 @@ func TestNodeBuilder(t *testing.T) {
 				"entrypoint": "main.ts",
 			},
 		},
+		{
+			Root: "typescript/externals",
+			Kind: api.TaskKindNode,
+			Options: api.KindOptions{
+				"shim":       "true",
+				"entrypoint": "main.ts",
+			},
+		},
 		// TODO: debug why yarn workspaces aren't working. Seems like we would need to compile
 		// pkg1 before compiling pkg2. Once we do that, add an npm workspaces variant along with
 		// JS variants.

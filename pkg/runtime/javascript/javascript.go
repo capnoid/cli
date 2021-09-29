@@ -182,9 +182,16 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 
 	// Confirm we have a `package.json`, otherwise we might install shim dependencies
 	// in the wrong folder.
-	hasPkgJSON := fsx.AssertExistsAll(filepath.Join(root, "package.json")) == nil
+	pathPkgJSON := filepath.Join(root, "package.json")
+	hasPkgJSON := fsx.AssertExistsAll(pathPkgJSON) == nil
 	if !hasPkgJSON {
 		return nil, nil, errors.New("a package.json is missing")
+	}
+	// Workaround to get esbuild to not bundle dependencies.
+	// See build.ExternalPackages for details.
+	externalDeps, err := build.ExternalPackages(pathPkgJSON)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	start := time.Now()
@@ -195,9 +202,7 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 		Outfile:     filepath.Join(tmpdir, "dist/shim.js"),
 		Write:       true,
 
-		// External pg-native temporarily fixes issue where pg requires pg-native and esbuild
-		// fails when it's not installed (it's an optional dependency).
-		External: []string{"pg-native"},
+		External: externalDeps,
 		Platform: esbuild.PlatformNode,
 		Engines: []esbuild.Engine{
 			// esbuild is relatively generous in the node versions it supports:
