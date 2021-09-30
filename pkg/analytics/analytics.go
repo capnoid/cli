@@ -11,7 +11,7 @@ import (
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/version"
 	"github.com/getsentry/sentry-go"
-	"gopkg.in/segmentio/analytics-go.v3"
+	"github.com/segmentio/analytics-go"
 )
 
 // Set by Go Releaser.
