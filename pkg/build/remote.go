@@ -100,7 +100,7 @@ func updateKindAndOptions(ctx context.Context, client *api.Client, def definitio
 
 	// Normalize entrypoint to `/` regardless of OS.
 	if ep, ok := kindOptions["entrypoint"].(string); ok {
-		kindOptions["entrypoint"] = filepath.Clean(filepath.ToSlash(ep))
+		kindOptions["entrypoint"] = filepath.ToSlash(filepath.Clean(ep))
 	}
 
 	_, err = client.UpdateTask(ctx, api.UpdateTaskRequest{
