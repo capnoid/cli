@@ -45,7 +45,7 @@ func (t *Tree) Copy(src string) error {
 	}
 
 	if err := archive.Unpack(r, t.root, &archive.TarOptions{}); err != nil {
-		return errors.Wrapf(err, "unpack %s", t.root)
+		return errors.Wrapf(err, "unpacking %s", t.root)
 	}
 
 	return nil

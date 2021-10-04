@@ -99,8 +99,9 @@ func updateKindAndOptions(ctx context.Context, client *api.Client, def definitio
 	}
 
 	// Normalize entrypoint to `/` regardless of OS.
+	// CLI might be run from Windows or not Windows, but remote API is on Linux.
 	if ep, ok := kindOptions["entrypoint"].(string); ok {
-		kindOptions["entrypoint"] = filepath.ToSlash(filepath.Clean(ep))
+		kindOptions["entrypoint"] = filepath.ToSlash(ep)
 	}
 
 	_, err = client.UpdateTask(ctx, api.UpdateTaskRequest{

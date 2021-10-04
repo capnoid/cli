@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/airplanedev/cli/pkg/analytics"
@@ -67,30 +66,24 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 		return err
 	}
 
-	abs, err := filepath.Abs(cfg.file)
+	absFile, err := filepath.Abs(cfg.file)
 	if err != nil {
 		return err
 	}
 
-	// Detect the root of the task, if found ensure
-	// that the entrypoint and the root are included
-	// in the build.
-	taskroot, err := r.Root(abs)
+	taskroot, err := r.Root(absFile)
 	if err != nil {
 		return err
 	}
-	entrypoint, err := filepath.Rel(taskroot, abs)
-	if err != nil {
+	if err := def.SetEntrypoint(taskroot, absFile); err != nil {
 		return err
 	}
-	setEntrypoint(&def, entrypoint)
 
-	// TODO(amir): move to `d.SetWorkdir()`.
-	if def.Node != nil {
-		if wd, err := r.Workdir(abs); err == nil {
-			def.Node.Workdir = strings.TrimPrefix(wd, taskroot)
-		}
+	wd, err := r.Workdir(absFile)
+	if err != nil {
+		return err
 	}
+	def.SetWorkdir(taskroot, wd)
 
 	kind, kindOptions, err := def.GetKindAndOptions()
 	if err != nil {
@@ -148,20 +141,4 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 		client.TaskURL(task.Slug),
 	)
 	return nil
-}
-
-// SetEntrypoint sets the entrypoint on d.
-//
-// TODO(amir): move this to `def.SetEntrypoint()` or whatever.
-func setEntrypoint(d *definitions.Definition, ep string) {
-	switch kind, _, _ := d.GetKindAndOptions(); kind {
-	case api.TaskKindNode:
-		d.Node.Entrypoint = ep
-	case api.TaskKindPython:
-		d.Python.Entrypoint = ep
-	case api.TaskKindShell:
-		d.Shell.Entrypoint = ep
-	default:
-		panic(fmt.Sprintf("setEntrypoint received unexpected kind %q", kind))
-	}
 }

@@ -3,9 +3,12 @@ package definitions
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/cli/pkg/utils/pathcase"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -165,6 +168,48 @@ func (def Definition) GetKindAndOptions() (api.TaskKind, api.KindOptions, error)
 	}
 
 	return "", api.KindOptions{}, errors.New("No kind specified")
+}
+
+// SetEntrypoint computes and normalizes the entrypoint based on the task root and absolute
+// path to the entrypoint.
+func (def *Definition) SetEntrypoint(taskroot, absEntrypoint string) error {
+	var err error
+	// Fix casing on entrypoint for case-insensitive filesystems.
+	origEntrypoint := absEntrypoint
+	absEntrypoint, err = pathcase.ActualFilename(absEntrypoint)
+	if err != nil {
+		return err
+	}
+	if absEntrypoint != origEntrypoint {
+		logger.Warning(
+			"Using %q instead of %q - different casing may not work on all operating systems",
+			filepath.Base(absEntrypoint), filepath.Base(origEntrypoint),
+		)
+	}
+
+	ep, err := filepath.Rel(taskroot, absEntrypoint)
+	if err != nil {
+		return err
+	}
+
+	switch kind, _, _ := def.GetKindAndOptions(); kind {
+	case api.TaskKindNode:
+		def.Node.Entrypoint = ep
+	case api.TaskKindPython:
+		def.Python.Entrypoint = ep
+	case api.TaskKindShell:
+		def.Shell.Entrypoint = ep
+	default:
+		return errors.Errorf("unexpected kind %q", kind)
+	}
+	return nil
+}
+
+func (def *Definition) SetWorkdir(taskroot, workdir string) {
+	// TODO: currently only a concept on Node - should be generalized to all builders.
+	if def.Node != nil {
+		def.Node.Workdir = strings.TrimPrefix(workdir, taskroot)
+	}
 }
 
 func (def Definition) Validate() (Definition, error) {
