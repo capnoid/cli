@@ -205,7 +205,7 @@ func (c Client) ListRuns(ctx context.Context, req ListRunsRequest) (ListRunsResp
 
 // RunTask runs a task.
 func (c Client) RunTask(ctx context.Context, req RunTaskRequest) (res RunTaskResponse, err error) {
-	err = c.do(ctx, "POST", "/runs/create", req, &res)
+	err = c.do(ctx, "POST", "/tasks/execute", req, &res)
 	return
 }
 
