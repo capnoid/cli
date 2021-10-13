@@ -23,7 +23,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.1.0
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/gosimple/slug v1.10.0
+	github.com/gosimple/slug v1.11.0
 	github.com/hashicorp/go-retryablehttp v0.7.0
 	github.com/joho/godotenv v1.4.0
 	github.com/kr/pty v1.1.8 // indirect
