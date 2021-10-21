@@ -1,5 +1,9 @@
 # This file includes a shim that will execute your task code.
 
+try:
+    import airplane
+except ModuleNotFoundError:
+    pass
 import importlib.util as util
 import json
 import os
@@ -17,7 +21,12 @@ def run(args):
     spec.loader.exec_module(mod)
 
     try:
-        mod.main(json.loads(args[1]))
+        ret = mod.main(json.loads(args[1]))
+        if ret is not None:
+            try:
+                airplane.set_output(ret)
+            except NameError:
+                raise Exception("airplanesdk package must be installed to output return values - add airplanesdk to requirements.txt or remove return value from task")
     except Exception as e:
         raise Exception("executing {{.Entrypoint}}") from e
 

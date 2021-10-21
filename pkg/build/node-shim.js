@@ -1,4 +1,5 @@
 // This file includes a shim that will execute your task code.
+import airplane from "airplane";
 import task from "{{.Entrypoint}}";
 
 async function main() {
@@ -14,7 +15,10 @@ async function main() {
   }
 
   try {
-    await task(JSON.parse(process.argv[2]));
+    let ret = await task(JSON.parse(process.argv[2]));
+    if (ret !== undefined) {
+      airplane.setOutput(ret);
+    }
   } catch (err) {
     console.error(err);
     console.log(

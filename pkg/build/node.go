@@ -140,6 +140,7 @@ func node(root string, options api.KindOptions) (string, error) {
 		RUN {{.InlineShim}} > /airplane/.airplane/shim.js && \
 			esbuild /airplane/.airplane/shim.js \
 				--bundle \
+				--external:airplane \
 				--platform=node {{.ExternalFlags}} \
 				--target=node{{.NodeVersion}} \
 				--outfile=/airplane/.airplane/dist/shim.js
@@ -152,6 +153,7 @@ func GenShimPackageJSON() ([]byte, error) {
 		Dependencies map[string]string `json:"dependencies"`
 	}{
 		Dependencies: map[string]string{
+			"airplane": "~0.1.2",
 			"@types/node": "^16",
 		},
 	})
