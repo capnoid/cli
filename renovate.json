@@ -2,5 +2,5 @@
   "extends": ["config:base", "group:allNonMajor"],
   "labels": ["merge"],
   "postUpdateOptions": ["gomodTidy"],
-  "reviewersFromCodeOwners": true
+  "reviewers": ["team:deps"]
 }
