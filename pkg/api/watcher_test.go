@@ -15,7 +15,7 @@ func init() {
 }
 
 func TestWatcher(t *testing.T) {
-	t.Run("dedupes logs (a, a, ab)", func(t *testing.T) {
+	t.Run("paginates logs", func(t *testing.T) {
 		var ctx = context.Background()
 		var assert = require.New(t)
 		var lcm = logsClientMock{}
@@ -32,9 +32,8 @@ func TestWatcher(t *testing.T) {
 		}
 
 		var responses = []GetLogsResponse{
-			{Logs: []LogItem{a}},
-			{Logs: []LogItem{a}},
-			{Logs: []LogItem{a, b}},
+			{Logs: []LogItem{a}, PrevPageToken: "001"},
+			{Logs: []LogItem{b}, PrevPageToken: "002"},
 		}
 
 		outputs := GetOutputsResponse{
@@ -44,21 +43,30 @@ func TestWatcher(t *testing.T) {
 		}
 
 		var reqs int64
-		lcm.getLogs = func(string, time.Time) (GetLogsResponse, error) {
-			var n int
-
-			if n = int(atomic.AddInt64(&reqs, 1)); n > 3 {
-				n = len(responses)
+		lcm.getLogs = func(runID, prevToken string) (GetLogsResponse, error) {
+			atomic.AddInt64(&reqs, 1)
+			if prevToken == "" {
+				return responses[0], nil
 			}
-
-			fmt.Println("get response", responses[n-1])
-			return responses[n-1], nil
+			foundResponseIndex := -1
+			for i, r := range responses {
+				if prevToken == r.Logs[0].InsertID {
+					foundResponseIndex = i
+				}
+			}
+			if foundResponseIndex == -1 {
+				return GetLogsResponse{}, nil
+			}
+			if foundResponseIndex + 1 == len(responses) {
+				return GetLogsResponse{}, nil
+			}
+			return responses[foundResponseIndex+1], nil
 		}
 
-		lcm.getRun = func(string) (GetRunResponse, error) {
+		lcm.getRun = func(string) (resp GetRunResponse, err error) {
 			var run = Run{Status: RunActive}
 
-			if atomic.LoadInt64(&reqs) > 2 {
+			if atomic.LoadInt64(&reqs) > 1 {
 				run.Status = RunSucceeded
 			}
 
@@ -97,13 +105,13 @@ func TestWatcher(t *testing.T) {
 }
 
 type logsClientMock struct {
-	getLogs    func(runID string, s time.Time) (GetLogsResponse, error)
+	getLogs    func(runID string, s string) (GetLogsResponse, error)
 	getRun     func(runID string) (GetRunResponse, error)
 	getOutputs func(runID string) (GetOutputsResponse, error)
 }
 
-func (lcm logsClientMock) GetLogs(ctx context.Context, runID string, since time.Time) (GetLogsResponse, error) {
-	return lcm.getLogs(runID, since)
+func (lcm logsClientMock) GetLogs(ctx context.Context, runID, s string) (GetLogsResponse, error) {
+	return lcm.getLogs(runID, s)
 }
 
 func (lcm logsClientMock) GetRun(ctx context.Context, runID string) (GetRunResponse, error) {

@@ -226,10 +226,10 @@ func (c Client) GetRun(ctx context.Context, id string) (res GetRunResponse, err 
 }
 
 // GetLogs returns the logs by runID and since timestamp.
-func (c Client) GetLogs(ctx context.Context, runID string, since time.Time) (res GetLogsResponse, err error) {
+func (c Client) GetLogs(ctx context.Context, runID, prevToken string) (res GetLogsResponse, err error) {
 	q := url.Values{"runID": []string{runID}}
-	if !since.IsZero() {
-		q.Set("since", since.Format(time.RFC3339))
+	if prevToken != "" {
+		q.Set("prev_token", prevToken)
 	}
 	if logger.EnableDebug {
 		q.Set("level", "debug")
@@ -313,15 +313,15 @@ func (c Client) DeleteAPIKey(ctx context.Context, req DeleteAPIKeyRequest) (err 
 	return
 }
 
-func (c Client) GetBuildLogs(ctx context.Context, buildID string, since time.Time) (res GetBuildLogsResponse, err error) {
+func (c Client) GetBuildLogs(ctx context.Context, buildID string, prevToken string) (res GetBuildLogsResponse, err error) {
 	q := url.Values{
 		"buildID": []string{buildID},
 	}
-	if !since.IsZero() {
-		q.Set("since", since.Format(time.RFC3339))
-	}
 	if logger.EnableDebug {
 		q.Set("level", "debug")
+	}
+	if prevToken != "" {
+		q.Set("prev_token", prevToken)
 	}
 	err = c.do(ctx, "GET", "/builds/getLogs?"+q.Encode(), nil, &res)
 	return

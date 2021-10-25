@@ -206,23 +206,23 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 
 	t := time.NewTicker(time.Second)
 
-	var since time.Time
-	var logs []api.LogItem
+	var prevToken string
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-t.C:
-			r, err := client.GetBuildLogs(ctx, buildID, since)
+			r, err := client.GetBuildLogs(ctx, buildID, prevToken)
 			if err != nil {
 				return errors.Wrap(err, "getting build logs")
 			}
+
 			if len(r.Logs) > 0 {
-				since = r.Logs[len(r.Logs)-1].Timestamp
+				prevToken = r.PrevPageToken
 			}
 
-			newLogs := api.DedupeLogs(logs, r.Logs)
-			for _, l := range newLogs {
+			api.SortLogs(r.Logs)
+			for _, l := range r.Logs {
 				text := l.Text
 				if strings.HasPrefix(l.Text, "[builder] ") {
 					text = logger.Gray(strings.TrimPrefix(text, "[builder] "))
@@ -230,7 +230,6 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 
 				buildLog(l.Level, text)
 			}
-			logs = append(logs, newLogs...)
 
 			b, err := client.GetBuild(ctx, buildID)
 			if err != nil {

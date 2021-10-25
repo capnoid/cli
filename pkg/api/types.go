@@ -81,14 +81,18 @@ type UpdateTaskResponse struct {
 
 // GetLogsResponse represents a get logs response.
 type GetLogsResponse struct {
-	RunID string    `json:"runID"`
-	Logs  []LogItem `json:"logs"`
+	RunID         string    `json:"runID"`
+	Logs          []LogItem `json:"logs"`
+	NextPageToken string    `json:"next_token"`
+	PrevPageToken string    `json:"prev_token"`
 }
 
 // GetBuildLogsResponse represents a get build logs response.
 type GetBuildLogsResponse struct {
-	BuildID string    `json:"buildID"`
-	Logs    []LogItem `json:"logs"`
+	BuildID       string    `json:"buildID"`
+	Logs          []LogItem `json:"logs"`
+	NextPageToken string    `json:"next_token"`
+	PrevPageToken string    `json:"prev_token"`
 }
 
 // Outputs represents outputs.

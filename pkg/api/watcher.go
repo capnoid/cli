@@ -17,17 +17,18 @@ var (
 
 // LogsClient represents a logs client.
 type logsClient interface {
-	GetLogs(ctx context.Context, runID string, t time.Time) (GetLogsResponse, error)
+	GetLogs(ctx context.Context, runID, prevToken string) (GetLogsResponse, error)
 	GetOutputs(ctx context.Context, runID string) (GetOutputsResponse, error)
 	GetRun(ctx context.Context, runID string) (GetRunResponse, error)
 }
 
 // RunState represents a run state.
 type RunState struct {
-	Status  RunStatus
-	Logs    []LogItem
-	Outputs Outputs
-	err     error
+	Status    RunStatus
+	Logs      []LogItem
+	PrevToken string
+	Outputs   Outputs
+	err       error
 }
 
 // Err returns an error if any.
@@ -48,23 +49,6 @@ func (r RunState) Stopped() bool {
 // Failed returns true if the task has failed.
 func (r RunState) Failed() bool {
 	return r.Status == RunFailed
-}
-
-// Merge merges run states.
-func (r RunState) merge(b RunState) RunState {
-	return RunState{
-		Status:  b.Status,
-		Logs:    DedupeLogs(r.Logs, b.Logs),
-		Outputs: b.Outputs,
-	}
-}
-
-// LastTimestamp returns the last log timestamp.
-func (r RunState) lastTimestamp() time.Time {
-	if l := len(r.Logs); l > 0 {
-		return r.Logs[l-1].Timestamp
-	}
-	return time.Time{}
 }
 
 // Watcher represents a run watcher.
@@ -123,7 +107,7 @@ func (w *Watcher) watch() {
 				return
 			}
 
-			w.send(w.ctx, prev.merge(state))
+			w.send(w.ctx, state)
 			prev = state
 		}
 	}
@@ -143,7 +127,6 @@ func (w *Watcher) send(ctx context.Context, state RunState) {
 // Fetch fetches the next state.
 func (w *Watcher) fetch(ctx context.Context, prev RunState) (RunState, error) {
 	var eg, subctx = errgroup.WithContext(ctx)
-	var since = prev.lastTimestamp().UTC()
 	var state = new(RunState)
 
 	eg.Go(func() error {
@@ -166,13 +149,17 @@ func (w *Watcher) fetch(ctx context.Context, prev RunState) (RunState, error) {
 	})
 
 	eg.Go(func() error {
-		resp, err := w.client.GetLogs(subctx, w.runID, since)
+		resp, err := w.client.GetLogs(subctx, w.runID, prev.PrevToken)
 		if err != nil {
 			return errors.Wrap(err, "get logs")
 		}
-		sortLogs(resp.Logs)
+		SortLogs(resp.Logs)
 
 		state.Logs = resp.Logs
+		state.PrevToken = prev.PrevToken
+		if len(resp.Logs) > 0 {
+			state.PrevToken = resp.PrevPageToken
+		}
 		return nil
 	})
 
@@ -184,41 +171,9 @@ func (w *Watcher) fetch(ctx context.Context, prev RunState) (RunState, error) {
 }
 
 // SortLogs returns sorted logs.
-func sortLogs(logs []LogItem) {
+func SortLogs(logs []LogItem) {
 	sort.Slice(logs, func(i, j int) bool {
 		a, b := logs[i], logs[j]
 		return a.Timestamp.Before(b.Timestamp) && a.InsertID < b.InsertID
 	})
-}
-
-// LogKey represents a LogItem key.
-type logKey struct {
-	ts       time.Time
-	insertID string
-}
-
-// NewLogKey returns a LogKey for LogItem.
-func newLogKey(l LogItem) logKey {
-	return logKey{
-		ts:       l.Timestamp,
-		insertID: l.InsertID,
-	}
-}
-
-// DedupeLogs de-duplicates logs by timestamp and insertId.
-func DedupeLogs(a, b []LogItem) []LogItem {
-	var dedupe = make(map[logKey]struct{})
-	var ret []LogItem
-
-	for _, l := range a {
-		dedupe[newLogKey(l)] = struct{}{}
-	}
-
-	for _, l := range b {
-		if _, ok := dedupe[newLogKey(l)]; !ok {
-			ret = append(ret, l)
-		}
-	}
-
-	return ret
 }
