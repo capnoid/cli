@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/airplanedev/cli/pkg/api"
@@ -253,6 +254,19 @@ func (def Definition) Validate() (Definition, error) {
 	// TODO: validate the rest of the fields!
 
 	return def, nil
+}
+
+var jsonRegex = regexp.MustCompile(`{{ *JSON *}}`)
+
+// Upgrades this task definition for JST interpolation.
+// Assumes only usage of expressions is {{JSON}}.
+func (def *Definition) UpgradeJST() {
+	args := []string{}
+	for _, arg := range def.Arguments {
+		jstArg := jsonRegex.ReplaceAllString(arg, "{{JSON.stringify(params)}}")
+		args = append(args, jstArg)
+	}
+	def.Arguments = args
 }
 
 func UnmarshalDefinition(buf []byte, defPath string) (Definition, error) {

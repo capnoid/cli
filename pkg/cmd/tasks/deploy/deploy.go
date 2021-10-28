@@ -20,6 +20,8 @@ type config struct {
 	client *api.Client
 	file   string
 	local  bool
+
+	upgradeInterpolation bool
 }
 
 func New(c *cli.Config) *cobra.Command {
@@ -56,6 +58,7 @@ func New(c *cli.Config) *cobra.Command {
 
 	cmd.Flags().BoolVarP(&cfg.local, "local", "L", false, "use a local Docker daemon (instead of an Airplane-hosted builder)")
 	cmd.Flags().StringVarP(&cfg.file, "file", "f", "", "File to deploy (.yaml, .yml, .js, .ts)")
+	cmd.Flags().BoolVar(&cfg.upgradeInterpolation, "jst", false, "Upgrade interpolation to JST")
 	cli.Must(cmd.Flags().MarkHidden("file")) // --file is deprecated
 
 	return cmd

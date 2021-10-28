@@ -48,6 +48,8 @@ type UpdateTaskRequest struct {
 	// TODO(amir): friendly type here (120s, 5m ...)
 	Timeout int     `json:"timeout"`
 	BuildID *string `json:"buildID"`
+
+	InterpolationMode string `json:"interpolationMode" yaml:"-"`
 }
 
 type Permissions []Permission
@@ -311,6 +313,7 @@ type Task struct {
 	RequireExplicitPermissions bool             `json:"requireExplicitPermissions" yaml:"-"`
 	Permissions                Permissions      `json:"permissions" yaml:"-"`
 	Timeout                    int              `json:"timeout" yaml:"timeout"`
+	InterpolationMode          string           `json:"interpolationMode" yaml:"-"`
 }
 
 type KindOptions map[string]interface{}

@@ -90,6 +90,24 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 		return err
 	}
 
+	interpolationMode := task.InterpolationMode
+	if interpolationMode != "jst" {
+		if cfg.upgradeInterpolation {
+			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
+More information: https://apn.sh/jst-upgrade`)
+			interpolationMode = "jst"
+			def.UpgradeJST()
+		} else {
+			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
+been automatically upgraded because of potential backwards-compatibility issues
+(e.g. uploads will be passed to your task as an object with a url field instead
+of just the url string).
+
+To upgrade, update your task to support the new format and re-deploy with --jst.
+More information: https://apn.sh/jst-upgrade`)
+		}
+	}
+
 	tp.buildLocal = cfg.local
 	resp, err := build.Run(ctx, build.Request{
 		Local:   cfg.local,
@@ -124,6 +142,7 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 		Permissions:                task.Permissions,
 		Timeout:                    def.Timeout,
 		BuildID:                    pointers.String(resp.BuildID),
+		InterpolationMode:          interpolationMode,
 	})
 	if err != nil {
 		return err

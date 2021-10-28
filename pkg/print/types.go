@@ -25,6 +25,7 @@ type printTask struct {
 	RequireExplicitPermissions bool                 `json:"requireExplicitPermissions" yaml:"-"`
 	Permissions                api.Permissions      `json:"permissions" yaml:"-"`
 	Timeout                    int                  `json:"timeout" yaml:"timeout"`
+	InterpolationMode          string               `json:"-" yaml:"-"`
 }
 
 func printTasks(tasks []api.Task) []printTask {

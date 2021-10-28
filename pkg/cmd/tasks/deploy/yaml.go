@@ -121,6 +121,24 @@ func deployFromYaml(ctx context.Context, cfg config) (rErr error) {
 	props.taskID = task.ID
 	props.taskName = task.Name
 
+	interpolationMode := task.InterpolationMode
+	if interpolationMode != "jst" {
+		if cfg.upgradeInterpolation {
+			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
+More information: https://apn.sh/jst-upgrade`)
+			interpolationMode = "jst"
+			def.UpgradeJST()
+		} else {
+			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
+been automatically upgraded because of potential backwards-compatibility issues
+(e.g. uploads will be passed to your task as an object with a url field instead
+of just the url string).
+
+To upgrade, update your task to support the new format and re-deploy with --jst.
+More information: https://apn.sh/jst-upgrade`)
+		}
+	}
+
 	if ok, err := build.NeedsBuilding(kind); err != nil {
 		return err
 	} else if ok {
@@ -157,6 +175,7 @@ func deployFromYaml(ctx context.Context, cfg config) (rErr error) {
 		RequireExplicitPermissions: task.RequireExplicitPermissions,
 		Permissions:                task.Permissions,
 		Timeout:                    def.Timeout,
+		InterpolationMode:          interpolationMode,
 	})
 	if err != nil {
 		return errors.Wrapf(err, "updating task %s", def.Slug)
