@@ -25,7 +25,8 @@ builds:
         goarch: 386
     mod_timestamp: "{{ .CommitTimestamp }}"
 archives:
-  - files: [only-the-binary*]
+  - id: archive
+    files: [only-the-binary*]
     wrap_in_directory: false
     # This is the default name_template, but without the version. This allows install.sh to compute the
     # latest artifact name without knowing the version.
@@ -49,7 +50,7 @@ brews:
       name: homebrew-tap
     homepage: "https://airplane.dev"
     ids:
-      - binary
+      - archive
     test: |
       system "#{bin}/airplane help"
     commit_author:
