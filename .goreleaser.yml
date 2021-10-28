@@ -48,6 +48,8 @@ brews:
       owner: airplanedev
       name: homebrew-tap
     homepage: "https://airplane.dev"
+    ids:
+      - binary
     test: |
       system "#{bin}/airplane help"
     commit_author:
