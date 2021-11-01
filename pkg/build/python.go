@@ -44,7 +44,7 @@ func python(root string, args api.KindOptions) (string, error) {
 			&& apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 		WORKDIR /airplane
-		RUN pip install airplanesdk>=0.3.0,<0.4.0
+		RUN pip install "airplanesdk>=0.3.0,<0.4.0"
 		RUN mkdir -p .airplane && {{.InlineShim}} > .airplane/shim.py
 		{{if .HasRequirements}}
 		COPY requirements.txt .
