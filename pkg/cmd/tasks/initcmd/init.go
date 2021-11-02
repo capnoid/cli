@@ -109,6 +109,7 @@ func run(ctx context.Context, cfg config) error {
 		}
 
 		code := prependComment(buf, runtime.Comment(r, task))
+		// Note: 0644 is ignored because file already exists. Uses a reasonable default just in case.
 		if err := ioutil.WriteFile(cfg.file, code, 0644); err != nil {
 			return err
 		}
@@ -118,16 +119,16 @@ func run(ctx context.Context, cfg config) error {
 		return nil
 	}
 
-	code, err := r.Generate(task)
+	code, fileMode, err := r.Generate(task)
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfg.file), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cfg.file), 0755); err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile(cfg.file, code, 0644); err != nil {
+	if err := ioutil.WriteFile(cfg.file, code, fileMode); err != nil {
 		return err
 	}
 

@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/airplanedev/cli/pkg/api"
@@ -39,8 +40,9 @@ type Settings struct {
 type Interface interface {
 	// Generate accepts a task and generates code to match the task.
 	//
-	// An error is returned if the code cannot be generated.
-	Generate(task api.Task) ([]byte, error)
+	// os.FileMode is used for the permissions of the generated file. Files will typically use 0644
+	// but might use 0744 for executable scripts (e.g. shell scripts).
+	Generate(task api.Task) ([]byte, os.FileMode, error)
 
 	// Workdir attempts to detect the root of the given task path.
 	//

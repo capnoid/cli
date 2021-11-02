@@ -98,15 +98,16 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 }
 
 // Generate implementation.
-func (r Runtime) Generate(t api.Task) ([]byte, error) {
+func (r Runtime) Generate(t api.Task) ([]byte, os.FileMode, error) {
 	var args = data{Comment: runtime.Comment(r, t)}
 	var buf bytes.Buffer
 
 	if err := code.Execute(&buf, args); err != nil {
-		return nil, fmt.Errorf("shell: template execute - %w", err)
+		return nil, 0, fmt.Errorf("shell: template execute - %w", err)
 	}
 
-	return buf.Bytes(), nil
+	// 0744 has +x to execute shell scripts.
+	return buf.Bytes(), 0744, nil
 }
 
 // Workdir implementation.

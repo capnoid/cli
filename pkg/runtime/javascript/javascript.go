@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,15 +46,15 @@ type data struct {
 type Runtime struct{}
 
 // Generate implementation.
-func (r Runtime) Generate(t api.Task) ([]byte, error) {
+func (r Runtime) Generate(t api.Task) ([]byte, fs.FileMode, error) {
 	var args = data{Comment: runtime.Comment(r, t)}
 	var buf bytes.Buffer
 
 	if err := code.Execute(&buf, args); err != nil {
-		return nil, fmt.Errorf("javascript: template execute - %w", err)
+		return nil, 0, fmt.Errorf("javascript: template execute - %w", err)
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes(), 0644, nil
 }
 
 // Workdir picks the working directory for commands to be executed from.

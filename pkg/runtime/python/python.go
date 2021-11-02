@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,15 +107,15 @@ func checkPythonInstalled(ctx context.Context) error {
 }
 
 // Generate implementation.
-func (r Runtime) Generate(t api.Task) ([]byte, error) {
+func (r Runtime) Generate(t api.Task) ([]byte, fs.FileMode, error) {
 	var args = data{Comment: runtime.Comment(r, t)}
 	var buf bytes.Buffer
 
 	if err := code.Execute(&buf, args); err != nil {
-		return nil, fmt.Errorf("python: template execute - %w", err)
+		return nil, 0, fmt.Errorf("python: template execute - %w", err)
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes(), 0644, nil
 }
 
 // Workdir implementation.
