@@ -43,7 +43,7 @@ func CheckLatest(ctx context.Context) error {
 		logger.Warning("A newer version of the Airplane CLI is available: %s", latest)
 		logger.Suggest(
 			"Visit the docs for upgrade instructions:",
-			"https://docs.airplane.dev/platform/install-the-airplane-cli#upgrading-the-cli",
+			"https://docs.airplane.dev/platform/airplane-cli#upgrading-the-cli",
 		)
 	}
 	return nil
