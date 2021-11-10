@@ -25,7 +25,11 @@ func remote(ctx context.Context, req Request) (*Response, error) {
 	if err := confirmBuildRoot(req.Root); err != nil {
 		return nil, err
 	}
-	buildLog(api.LogLevelInfo, logger.Gray("Building with %s as root...", relpath(req.Root)))
+	loader := logger.NewLoader()
+	defer loader.Stop()
+	loader.Start()
+
+	buildLog(api.LogLevelInfo, loader, logger.Gray("Building with %s as root...", relpath(req.Root)))
 
 	// Before performing a remote build, we must first update kind/kindOptions
 	// since the remote build relies on pulling those from the tasks table (for now).
@@ -33,7 +37,8 @@ func remote(ctx context.Context, req Request) (*Response, error) {
 		return nil, err
 	}
 
-	buildLog(api.LogLevelInfo, logger.Gray("Authenticating with Airplane..."))
+	buildLog(api.LogLevelInfo, loader, logger.Gray("Authenticating with Airplane..."))
+
 	registry, err := req.Client.GetRegistryToken(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting registry token")
@@ -46,12 +51,12 @@ func remote(ctx context.Context, req Request) (*Response, error) {
 	defer os.RemoveAll(tmpdir)
 
 	archivePath := path.Join(tmpdir, "archive.tar.gz")
-	buildLog(api.LogLevelInfo, logger.Gray("Packaging and uploading %s to build the task...", req.Root))
+	buildLog(api.LogLevelInfo, loader, logger.Gray("Packaging and uploading %s to build the task...", req.Root))
 	if err := archiveTaskDir(req.Def, req.Root, archivePath); err != nil {
 		return nil, err
 	}
 
-	uploadID, err := uploadArchive(ctx, req.Root, req.Client, archivePath)
+	uploadID, err := uploadArchive(ctx, req.Root, req.Client, archivePath, loader)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +165,9 @@ func archiveTaskDir(def definitions.Definition, root string, archivePath string)
 	return nil
 }
 
-func uploadArchive(ctx context.Context, root string, client *api.Client, archivePath string) (string, error) {
+func uploadArchive(ctx context.Context, root string, client *api.Client, archivePath string, loader *logger.Loader) (string, error) {
+	loader.Start()
+
 	archive, err := os.OpenFile(archivePath, os.O_RDONLY, 0)
 	if err != nil {
 		return "", errors.Wrap(err, "opening archive file")
@@ -173,7 +180,7 @@ func uploadArchive(ctx context.Context, root string, client *api.Client, archive
 	}
 	sizeBytes := int(info.Size())
 
-	buildLog(api.LogLevelInfo, logger.Gray("Uploading %s build archive...",
+	buildLog(api.LogLevelInfo, loader, logger.Gray("Uploading %s build archive...",
 		humanize.Bytes(uint64(sizeBytes)),
 	))
 
@@ -202,7 +209,10 @@ func uploadArchive(ctx context.Context, root string, client *api.Client, archive
 }
 
 func waitForBuild(ctx context.Context, client *api.Client, buildID string) error {
-	buildLog(api.LogLevelInfo, logger.Gray("Waiting for builder..."))
+	loader := logger.NewLoader()
+	defer loader.Stop()
+	loader.Start()
+	buildLog(api.LogLevelInfo, loader, logger.Gray("Waiting for builder..."))
 
 	t := time.NewTicker(time.Second)
 
@@ -228,7 +238,7 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 					text = logger.Gray(strings.TrimPrefix(text, "[builder] "))
 				}
 
-				buildLog(l.Level, text)
+				buildLog(l.Level, loader, text)
 			}
 
 			b, err := client.GetBuild(ctx, buildID)
@@ -237,6 +247,7 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 			}
 
 			if b.Build.Status.Stopped() {
+				loader.Stop()
 				switch b.Build.Status {
 				case api.BuildCancelled:
 					logger.Log("\nBuild " + logger.Bold(logger.Yellow("cancelled")))
@@ -250,15 +261,21 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 
 				return nil
 			}
+			loader.Start()
 		}
 	}
 }
 
-func buildLog(level api.LogLevel, msg string, args ...interface{}) {
+func buildLog(level api.LogLevel, loader *logger.Loader, msg string, args ...interface{}) {
+	loaderActive := loader.IsActive()
+	loader.Stop()
 	if level == api.LogLevelDebug {
 		logger.Log("["+logger.Yellow("build")+"] ["+logger.Blue("debug")+"] "+msg, args...)
 	} else {
 		logger.Log("["+logger.Yellow("build")+"] "+msg, args...)
+	}
+	if loaderActive {
+		loader.Start()
 	}
 }
 

@@ -3,7 +3,11 @@ package logger
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/briandowns/spinner"
 )
 
 var (
@@ -59,4 +63,41 @@ func Debug(msg string, args ...interface{}) {
 	msgf = debugPrefix + strings.Join(strings.Split(msgf, "\n"), "\n"+debugPrefix)
 
 	fmt.Fprint(os.Stderr, msgf+"\n")
+}
+
+// Loader adds a spinner / progress indicator to stderr.
+type Loader struct {
+	spin *spinner.Spinner
+}
+
+func NewLoader() *Loader {
+	return &Loader{spin: spinner.New(spinner.CharSets[11], 100*time.Millisecond, spinner.WithWriter(os.Stderr))}
+}
+
+// Start starts a new loader. The loader should be stopped
+// before writing additional output to stderr.
+func (sp *Loader) Start() {
+	sp.spin.Start()
+	// Hide cursor
+	tput("civis")
+}
+
+// Stop stops the loader and removes it from stderr.
+func (sp *Loader) Stop() {
+	sp.spin.Stop()
+	// Remove the spinner!
+	fmt.Fprint(os.Stderr, "\r \r")
+	// Show cursor
+	tput("cvvis")
+}
+
+// Returns whether the spinner is active.
+func (sp *Loader) IsActive() bool {
+	return sp.spin.Active()
+}
+
+func tput(arg string) error {
+	cmd := exec.Command("tput", arg)
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
 }
