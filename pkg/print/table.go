@@ -2,7 +2,6 @@ package print
 
 import (
 	"encoding/json"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/params"
+	"github.com/airplanedev/ojson"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -20,8 +20,6 @@ import (
 //
 // Its zero-value is ready for use.
 type Table struct{}
-
-type JsonObject map[string]interface{}
 
 // APIKeys implementation.
 func (t Table) apiKeys(apiKeys []api.APIKey) {
@@ -166,26 +164,38 @@ func (t Table) run(run api.Run) {
 // print outputs as table
 func (t Table) outputs(outputs api.Outputs) {
 	// Sort the output keys to match the UI.
-	keys := []string{}
-	for key := range outputs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	switch t := ojson.Value(outputs).V.(type) {
+	case *ojson.Object:
+		for _, key := range t.KeyOrder() {
+			fmt.Fprintln(os.Stdout, "")
+			fmt.Fprintln(os.Stdout, logger.Bold(formatOutputName(key)))
 
-	for _, key := range keys {
-		fmt.Fprintln(os.Stdout, "")
-
-		fmt.Fprintln(os.Stdout, logger.Bold(formatOutputName(key)))
-
-		values := outputs[key]
-		ok, jsonObjects := parseArrayOfJsonObject(values)
+			v, _ := t.Get(key)
+			switch t2 := v.(type) {
+			case []interface{}:
+				ok, jsonObjects := parseArrayOfJsonObject(t2)
+				if ok {
+					printOutputTable(jsonObjects)
+				} else {
+					printOutputArray(t2)
+				}
+			default:
+				fmt.Fprintln(os.Stdout, getCellValue(t2))
+			}
+		}
+	case []interface{}:
+		ok, jsonObjects := parseArrayOfJsonObject(t)
 		if ok {
 			printOutputTable(jsonObjects)
 		} else {
-			printOutputArray(values)
+			printOutputArray(t)
+		}
+	default:
+		v, err := json.Marshal(t)
+		if err != nil {
+			fmt.Fprintf(os.Stdout, "%v\n", v)
 		}
 	}
-	fmt.Fprintln(os.Stdout, "")
 }
 
 // formatOutputName converts output_name -> Output Name.
@@ -193,11 +203,11 @@ func formatOutputName(key string) string {
 	return strings.Title(strings.ReplaceAll(key, "_", " "))
 }
 
-func parseArrayOfJsonObject(values []interface{}) (bool, []JsonObject) {
-	var jsonObjects []JsonObject
+func parseArrayOfJsonObject(values []interface{}) (bool, []*ojson.Object) {
+	var jsonObjects []*ojson.Object
 	for _, value := range values {
 		switch t := value.(type) {
-		case map[string]interface{}:
+		case *ojson.Object:
 			jsonObjects = append(jsonObjects, t)
 		default:
 			return false, nil
@@ -206,11 +216,11 @@ func parseArrayOfJsonObject(values []interface{}) (bool, []JsonObject) {
 	return true, jsonObjects
 }
 
-func printOutputTable(objects []JsonObject) {
+func printOutputTable(objects []*ojson.Object) {
 	keyMap := make(map[string]bool)
 	var keyList []string
 	for _, object := range objects {
-		for key := range object {
+		for _, key := range object.KeyOrder() {
 			// add key to keyList if not already there
 			if _, ok := keyMap[key]; !ok {
 				keyList = append(keyList, key)
@@ -224,7 +234,8 @@ func printOutputTable(objects []JsonObject) {
 	for _, object := range objects {
 		values := make([]string, len(keyList))
 		for i, key := range keyList {
-			values[i] = getCellValue(object[key])
+			v, _ := object.Get(key)
+			values[i] = getCellValue(v)
 		}
 		tw.Append(values)
 	}

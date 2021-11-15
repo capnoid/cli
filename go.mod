@@ -53,13 +53,18 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
-require github.com/briandowns/spinner v1.16.0
+require (
+	github.com/airplanedev/lib v0.0.2
+	github.com/airplanedev/ojson v0.1.0
+	github.com/briandowns/spinner v1.16.0
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.17-0.20210211115548-6eac466e5fa3 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
+	github.com/airplanedev/path v0.0.1 // indirect
 	github.com/containerd/cgroups v0.0.0-20200824123100-0b889c03f102 // indirect
 	github.com/containerd/containerd v1.5.0-beta.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

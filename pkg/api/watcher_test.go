@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/airplanedev/ojson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,9 +38,11 @@ func TestWatcher(t *testing.T) {
 		}
 
 		outputs := GetOutputsResponse{
-			Outputs: map[string][]interface{}{"output": []interface{}{
-				map[string]string{"test key": "test value"},
-			}},
+			Outputs: Outputs{
+				V: ojson.NewObject().SetAndReturn("output", []interface{}{
+					ojson.NewObject().SetAndReturn("test key", "test value"),
+				}),
+			},
 		}
 
 		var reqs int64
@@ -57,7 +60,7 @@ func TestWatcher(t *testing.T) {
 			if foundResponseIndex == -1 {
 				return GetLogsResponse{}, nil
 			}
-			if foundResponseIndex + 1 == len(responses) {
+			if foundResponseIndex+1 == len(responses) {
 				return GetLogsResponse{}, nil
 			}
 			return responses[foundResponseIndex+1], nil

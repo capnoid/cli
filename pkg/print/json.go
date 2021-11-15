@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/ojson"
 )
 
 // JSON implements a JSON formatter.
@@ -51,14 +52,7 @@ func (j *JSON) run(run api.Run) {
 
 // Outputs implementation.
 func (j *JSON) outputs(outputs api.Outputs) {
-	for key, values := range outputs {
-		for _, value := range values {
-			j.enc.Encode(api.OutputRow{
-				OutputName: key,
-				Value:      value,
-			})
-		}
-	}
+	j.enc.Encode(ojson.Value(outputs))
 }
 
 // Config implementation.

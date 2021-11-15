@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/airplanedev/ojson"
 	"gopkg.in/yaml.v3"
 )
 
@@ -98,7 +99,7 @@ type GetBuildLogsResponse struct {
 }
 
 // Outputs represents outputs.
-type Outputs map[string][]interface{}
+type Outputs ojson.Value
 
 // Represents a line of the output
 type OutputRow struct {

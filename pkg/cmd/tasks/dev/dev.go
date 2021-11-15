@@ -18,12 +18,13 @@ import (
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
 	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
-	"github.com/airplanedev/cli/pkg/outputs"
 	"github.com/airplanedev/cli/pkg/params"
 	"github.com/airplanedev/cli/pkg/print"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/utils/bufiox"
+	"github.com/airplanedev/lib/pkg/outputs"
+	"github.com/airplanedev/ojson"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -139,22 +140,33 @@ func run(ctx context.Context, cfg config) error {
 		return errors.Wrap(err, "starting")
 	}
 
-	// mu guards o
+	// mu guards o and chunks
 	var mu sync.Mutex
-	o := api.Outputs{}
+	var o ojson.Value
+	chunks := make(map[string]*strings.Builder)
 
 	logParser := func(r io.Reader) error {
 		scanner := bufiox.NewScanner(r)
 		for scanner.Scan() {
 			line := scanner.Text()
-			if outputs.IsOutput(line) {
-				name := outputs.ParseOutputName(line)
-				value := outputs.ParseOutputValue(line)
-
-				mu.Lock()
-				o[name] = append(o[name], value)
+			mu.Lock()
+			parsed, err := outputs.Parse(chunks, line)
+			if err != nil {
+				mu.Unlock()
+				logger.Error("[%s] %+v", logger.Gray("outputs"), err)
+				continue
+			}
+			if parsed != nil {
+				err := outputs.ApplyOutputCommand(parsed, &o)
+				mu.Unlock()
+				if err != nil {
+					logger.Error("[%s] %+v", logger.Gray("outputs"), err)
+					continue
+				}
+			} else {
 				mu.Unlock()
 			}
+
 			logger.Log("[%s] %s", logger.Gray("log"), line)
 		}
 		return errors.Wrap(scanner.Err(), "scanning logs")
@@ -175,7 +187,7 @@ func run(ctx context.Context, cfg config) error {
 		return errors.Wrap(err, "waiting")
 	}
 
-	print.Outputs(o)
+	print.Outputs(api.Outputs(o))
 
 	return nil
 }
