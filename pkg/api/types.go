@@ -99,7 +99,24 @@ type GetBuildLogsResponse struct {
 }
 
 // Outputs represents outputs.
+//
+// It has custom UnmarshalJSON/MarshalJSON methods in order to proxy to the underlying
+// ojson.Value methods.
 type Outputs ojson.Value
+
+func (o *Outputs) UnmarshalJSON(buf []byte) error {
+	var v ojson.Value
+	if err := json.Unmarshal(buf, &v); err != nil {
+		return err
+	}
+
+	*o = Outputs(v)
+	return nil
+}
+
+func (o Outputs) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ojson.Value(o))
+}
 
 // Represents a line of the output
 type OutputRow struct {
