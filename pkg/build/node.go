@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -36,11 +37,30 @@ func node(root string, options api.KindOptions) (string, error) {
 
 	workdir, _ := options["workdir"].(string)
 	pathPackageJSON := filepath.Join(root, "package.json")
+	hasPackageJSON := fsx.AssertExistsAll(pathPackageJSON) == nil
 	pathYarnLock := filepath.Join(root, "yarn.lock")
+	var usesYarnWorkspaces bool
+
+	if hasPackageJSON {
+		buf, err := os.ReadFile(pathPackageJSON)
+		if err != nil {
+			return "", errors.Wrapf(err, "node: reading %s", pathPackageJSON)
+		}
+
+		var pkg struct {
+			Workspaces []string `json:"workspaces"`
+		}
+		if err := json.Unmarshal(buf, &pkg); err != nil {
+			return "", fmt.Errorf("node: parsing %s - %w", pathPackageJSON, err)
+		}
+		usesYarnWorkspaces = len(pkg.Workspaces) > 0
+	}
+
 	cfg := struct {
 		Workdir               string
 		Base                  string
 		HasPackageJSON        bool
+		UsesWorkspaces        bool
 		IsYarn                bool
 		InlineShim            string
 		InlineShimPackageJSON string
@@ -48,8 +68,9 @@ func node(root string, options api.KindOptions) (string, error) {
 		ExternalFlags         string
 	}{
 		Workdir:        workdir,
-		HasPackageJSON: fsx.AssertExistsAll(pathPackageJSON) == nil,
+		HasPackageJSON: hasPackageJSON,
 		IsYarn:         fsx.AssertExistsAll(pathYarnLock) == nil,
+		UsesWorkspaces: usesYarnWorkspaces,
 		// esbuild is relatively generous in the node versions it supports:
 		// https://esbuild.github.io/api/#target
 		NodeVersion: GetNodeVersion(options),
@@ -120,21 +141,30 @@ func node(root string, options api.KindOptions) (string, error) {
 		# of always building for linux/amd64.
 		RUN npm install -g typescript@4.2 && \
 			npm install -g esbuild@0.12 --unsafe-perm
-		COPY . /airplane
 
 		RUN mkdir -p /airplane/.airplane && \
 			cd /airplane/.airplane && \
 			{{.InlineShimPackageJSON}} > package.json && \
 			npm install
 
+		COPY package*.json yarn.* /airplane/
+
 		{{if not .HasPackageJSON}}
 		RUN echo '{}' > /airplane/package.json
+		{{end}}
+
+		{{if .UsesWorkspaces}}
+		COPY . /airplane
 		{{end}}
 
 		{{if .IsYarn}}
 		RUN yarn --non-interactive
 		{{else}}
 		RUN npm install
+		{{end}}
+
+		{{if not .UsesWorkspaces}}
+		COPY . /airplane
 		{{end}}
 
 		RUN {{.InlineShim}} > /airplane/.airplane/shim.js && \
@@ -153,7 +183,7 @@ func GenShimPackageJSON() ([]byte, error) {
 		Dependencies map[string]string `json:"dependencies"`
 	}{
 		Dependencies: map[string]string{
-			"airplane": "~0.1.2",
+			"airplane":    "~0.1.2",
 			"@types/node": "^16",
 		},
 	})
