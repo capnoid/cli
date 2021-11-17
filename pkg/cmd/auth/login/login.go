@@ -59,10 +59,18 @@ func validateToken(ctx context.Context, c *cli.Config) (bool, error) {
 	return true, nil
 }
 
+func validateAPIKey(ctx context.Context) bool {
+	return conf.GetAPIKey() != "" && conf.GetTeamID() != ""
+}
+
 func EnsureLoggedIn(ctx context.Context, c *cli.Config) error {
 	if ok, err := validateToken(ctx, c); err != nil {
 		return err
 	} else if ok {
+		return nil
+	}
+
+	if ok := validateAPIKey(ctx); ok {
 		return nil
 	}
 

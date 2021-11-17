@@ -47,6 +47,8 @@ func New() *cobra.Command {
 			if c, err := conf.ReadDefault(); err == nil {
 				cfg.Client.Token = c.Tokens[cfg.Client.Host]
 			}
+			cfg.Client.APIKey = conf.GetAPIKey()
+			cfg.Client.TeamID = conf.GetTeamID()
 			if err := analytics.Init(cfg); err != nil {
 				logger.Debug("error in analytics.Init: %v", err)
 			}
@@ -97,7 +99,6 @@ func New() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&cfg.DebugMode, "debug", false, "Whether to produce debugging output.")
 	cmd.PersistentFlags().BoolVar(&cfg.WithTelemetry, "with-telemetry", false, "Whether to send debug telemetry to Airplane.")
 	cmd.PersistentFlags().BoolVarP(&cfg.Version, "version", "v", false, "Print the CLI version.")
-
 	// Aliases for popular namespaced commands:
 	cmd.AddCommand(initcmd.New(cfg))
 	cmd.AddCommand(deploy.New(cfg))

@@ -81,3 +81,13 @@ func Write(path string, cfg Config) error {
 func WriteDefault(cfg Config) error {
 	return Write(path(), cfg)
 }
+
+// GetAPIKey gets an Airplane API key from an env var, if one exists.
+func GetAPIKey() string {
+	return os.Getenv("AP_API_KEY")
+}
+
+// GetTeamID gets an Airplane team ID from an env var, if one exists.
+func GetTeamID() string {
+	return os.Getenv("AP_TEAM_ID")
+}

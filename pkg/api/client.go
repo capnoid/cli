@@ -68,6 +68,10 @@ type Client struct {
 	//
 	// When empty the client will return an error.
 	Token string
+
+	// Alternative to token-based authn.
+	APIKey string
+	TeamID string
 }
 
 // AppURL returns the app URL.
@@ -350,12 +354,20 @@ func (c Client) do(ctx context.Context, method, path string, payload, reply inte
 		return errors.Wrap(err, "api: new request")
 	}
 
-	token, err := c.token()
-	if err != nil {
-		return err
+	// Authn
+	if c.Token == "" && c.APIKey == "" {
+		return errors.New("api: authentication is missing")
+	}
+	if c.Token != "" {
+		req.Header.Set("X-Airplane-Token", c.Token)
+	} else {
+		req.Header.Set("X-Airplane-API-Key", c.APIKey)
+		if c.TeamID == "" {
+			return errors.New("api: team ID is missing")
+		}
+		req.Header.Set("X-Team-ID", c.TeamID)
 	}
 
-	req.Header.Set("X-Airplane-Token", token)
 	req.Header.Set("X-Airplane-Client", "cli")
 	req.Header.Set("X-Airplane-Version", version.Get())
 
@@ -398,12 +410,4 @@ func (c Client) host() string {
 		return c.Host
 	}
 	return Host
-}
-
-// Token returns the configured token or an error.
-func (c Client) token() (string, error) {
-	if c.Token == "" {
-		return "", errors.New("api: token is missing")
-	}
-	return c.Token, nil
 }
