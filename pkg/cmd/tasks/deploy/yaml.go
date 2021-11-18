@@ -10,6 +10,7 @@ import (
 	"github.com/airplanedev/cli/pkg/build"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir"
+	libBuild "github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 )
 
@@ -139,7 +140,7 @@ More information: https://apn.sh/jst-upgrade`)
 		}
 	}
 
-	if ok, err := build.NeedsBuilding(kind); err != nil {
+	if ok, err := libBuild.NeedsBuilding(kind); err != nil {
 		return err
 	} else if ok {
 		resp, err := build.Run(ctx, build.NewDeployer(), build.Request{

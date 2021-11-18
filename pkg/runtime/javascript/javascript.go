@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/build"
-	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
+	"github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/blang/semver/v4"
 	esbuild "github.com/evanw/esbuild/pkg/api"
 	"github.com/pkg/errors"
@@ -119,8 +119,8 @@ func (r Runtime) Root(path string) (string, error) {
 }
 
 // Kind implementation.
-func (r Runtime) Kind() api.TaskKind {
-	return api.TaskKindNode
+func (r Runtime) Kind() build.TaskKind {
+	return build.TaskKindNode
 }
 
 func (r Runtime) FormatComment(s string) string {
@@ -238,7 +238,7 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 // checkNodeVersion compares the major version of the currently installed
 // node binary with that of the configured task and logs a warning if they
 // do not match.
-func checkNodeVersion(ctx context.Context, opts api.KindOptions) {
+func checkNodeVersion(ctx context.Context, opts build.KindOptions) {
 	nodeVersion, ok := opts["nodeVersion"].(string)
 	if !ok {
 		return

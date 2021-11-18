@@ -2,6 +2,7 @@ package print
 
 import (
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/lib/pkg/build"
 )
 
 // This struct mirrors api.Task, but with different json/yaml tags.
@@ -19,8 +20,8 @@ type printTask struct {
 	Env                        api.TaskEnv          `json:"env" yaml:"env"`
 	ResourceRequests           api.ResourceRequests `json:"resourceRequests" yaml:"resourceRequests"`
 	Resources                  api.Resources        `json:"resources" yaml:"resources"`
-	Kind                       api.TaskKind         `json:"builder" yaml:"builder"`
-	KindOptions                api.KindOptions      `json:"builderConfig" yaml:"builderConfig"`
+	Kind                       build.TaskKind       `json:"builder" yaml:"builder"`
+	KindOptions                build.KindOptions    `json:"builderConfig" yaml:"builderConfig"`
 	Repo                       string               `json:"repo" yaml:"repo"`
 	RequireExplicitPermissions bool                 `json:"requireExplicitPermissions" yaml:"-"`
 	Permissions                api.Permissions      `json:"permissions" yaml:"-"`

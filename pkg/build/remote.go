@@ -14,10 +14,11 @@ import (
 
 	"github.com/airplanedev/archiver"
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/build/ignore"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils"
+	libBuild "github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/build/ignore"
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/singleflight"
@@ -43,7 +44,7 @@ func NewDeployer() *Deployer {
 	}
 }
 
-func (d *Deployer) remote(ctx context.Context, req Request) (*Response, error) {
+func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response, error) {
 	ctx = context.WithValue(ctx, taskSlugContextKey, req.Def.Slug)
 	if err := confirmBuildRoot(req.Root); err != nil {
 		return nil, err
@@ -101,11 +102,11 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*Response, error) {
 
 	imageURL := fmt.Sprintf("%s/task-%s:%s",
 		registry.Repo,
-		sanitizeTaskID(req.TaskID),
+		libBuild.SanitizeTaskID(req.TaskID),
 		build.Build.ID,
 	)
 
-	return &Response{
+	return &libBuild.Response{
 		ImageURL: imageURL,
 		BuildID:  build.Build.ID,
 	}, nil

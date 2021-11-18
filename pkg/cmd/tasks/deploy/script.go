@@ -17,6 +17,7 @@ import (
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
+	libBuild "github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -263,8 +264,8 @@ type taskConfig struct {
 	workingDirectory string
 	task             api.Task
 	def              definitions.Definition
-	kind             api.TaskKind
-	kindOptions      api.KindOptions
+	kind             libBuild.TaskKind
+	kindOptions      libBuild.KindOptions
 }
 
 // getTaskConfig a task and associated information from a script.

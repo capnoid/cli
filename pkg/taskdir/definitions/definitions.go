@@ -10,6 +10,7 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/utils/pathcase"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -37,27 +38,27 @@ func NewDefinitionFromTask(task api.Task) (Definition, error) {
 	}
 
 	var taskDef interface{}
-	if task.Kind == api.TaskKindDeno {
+	if task.Kind == build.TaskKindDeno {
 		def.Deno = &DenoDefinition{}
 		taskDef = &def.Deno
 
-	} else if task.Kind == api.TaskKindDockerfile {
+	} else if task.Kind == build.TaskKindDockerfile {
 		def.Dockerfile = &DockerfileDefinition{}
 		taskDef = &def.Dockerfile
 
-	} else if task.Kind == api.TaskKindGo {
+	} else if task.Kind == build.TaskKindGo {
 		def.Go = &GoDefinition{}
 		taskDef = &def.Go
 
-	} else if task.Kind == api.TaskKindNode {
+	} else if task.Kind == build.TaskKindNode {
 		def.Node = &NodeDefinition{}
 		taskDef = &def.Node
 
-	} else if task.Kind == api.TaskKindPython {
+	} else if task.Kind == build.TaskKindPython {
 		def.Python = &PythonDefinition{}
 		taskDef = &def.Python
 
-	} else if task.Kind == api.TaskKindImage {
+	} else if task.Kind == build.TaskKindImage {
 		def.Image = &ImageDefinition{
 			Command: task.Command,
 		}
@@ -65,15 +66,15 @@ func NewDefinitionFromTask(task api.Task) (Definition, error) {
 			def.Image.Image = *task.Image
 		}
 
-	} else if task.Kind == api.TaskKindShell {
+	} else if task.Kind == build.TaskKindShell {
 		def.Shell = &ShellDefinition{}
 		taskDef = &def.Shell
 
-	} else if task.Kind == api.TaskKindSQL {
+	} else if task.Kind == build.TaskKindSQL {
 		def.SQL = &SQLDefinition{}
 		taskDef = &def.SQL
 
-	} else if task.Kind == api.TaskKindREST {
+	} else if task.Kind == build.TaskKindREST {
 		def.REST = &RESTDefinition{}
 		taskDef = &def.REST
 
@@ -90,48 +91,48 @@ func NewDefinitionFromTask(task api.Task) (Definition, error) {
 	return def, nil
 }
 
-func (def Definition) GetKindAndOptions() (api.TaskKind, api.KindOptions, error) {
-	options := api.KindOptions{}
+func (def Definition) GetKindAndOptions() (build.TaskKind, build.KindOptions, error) {
+	options := build.KindOptions{}
 	if def.Deno != nil {
 		if err := mapstructure.Decode(def.Deno, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding Deno definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding Deno definition")
 		}
-		return api.TaskKindDeno, options, nil
+		return build.TaskKindDeno, options, nil
 	} else if def.Dockerfile != nil {
 		if err := mapstructure.Decode(def.Dockerfile, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding Dockerfile definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding Dockerfile definition")
 		}
-		return api.TaskKindDockerfile, options, nil
+		return build.TaskKindDockerfile, options, nil
 	} else if def.Image != nil {
-		return api.TaskKindImage, api.KindOptions{}, nil
+		return build.TaskKindImage, build.KindOptions{}, nil
 	} else if def.Go != nil {
 		if err := mapstructure.Decode(def.Go, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding Go definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding Go definition")
 		}
-		return api.TaskKindGo, options, nil
+		return build.TaskKindGo, options, nil
 	} else if def.Node != nil {
 		if err := mapstructure.Decode(def.Node, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding Node definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding Node definition")
 		}
-		return api.TaskKindNode, options, nil
+		return build.TaskKindNode, options, nil
 	} else if def.Python != nil {
 		if err := mapstructure.Decode(def.Python, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding Python definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding Python definition")
 		}
-		return api.TaskKindPython, options, nil
+		return build.TaskKindPython, options, nil
 	} else if def.Shell != nil {
 		if err := mapstructure.Decode(def.Shell, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding Shell definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding Shell definition")
 		}
-		return api.TaskKindShell, options, nil
+		return build.TaskKindShell, options, nil
 	} else if def.SQL != nil {
 		if err := mapstructure.Decode(def.SQL, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding SQL definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding SQL definition")
 		}
-		return api.TaskKindSQL, options, nil
+		return build.TaskKindSQL, options, nil
 	} else if def.REST != nil {
 		if err := mapstructure.Decode(def.REST, &options); err != nil {
-			return "", api.KindOptions{}, errors.Wrap(err, "decoding REST definition")
+			return "", build.KindOptions{}, errors.Wrap(err, "decoding REST definition")
 		}
 
 		// API expects a single body field to be a string. For convenience, we allow the YAML definition to be a
@@ -142,7 +143,7 @@ func (def Definition) GetKindAndOptions() (api.TaskKind, api.KindOptions, error)
 			if _, ok := options["jsonBody"].(string); !ok && options["jsonBody"] != nil {
 				jsonBody, err := json.Marshal(options["jsonBody"])
 				if err != nil {
-					return "", api.KindOptions{}, errors.Wrap(err, "marshalling JSON body")
+					return "", build.KindOptions{}, errors.Wrap(err, "marshalling JSON body")
 				}
 				options["body"] = string(jsonBody)
 			} else {
@@ -165,10 +166,10 @@ func (def Definition) GetKindAndOptions() (api.TaskKind, api.KindOptions, error)
 			options["bodyType"] = "raw"
 		}
 
-		return api.TaskKindREST, options, nil
+		return build.TaskKindREST, options, nil
 	}
 
-	return "", api.KindOptions{}, errors.New("No kind specified")
+	return "", build.KindOptions{}, errors.New("No kind specified")
 }
 
 // SetEntrypoint computes and normalizes the entrypoint based on the task root and absolute
@@ -194,11 +195,11 @@ func (def *Definition) SetEntrypoint(taskroot, absEntrypoint string) error {
 	}
 
 	switch kind, _, _ := def.GetKindAndOptions(); kind {
-	case api.TaskKindNode:
+	case build.TaskKindNode:
 		def.Node.Entrypoint = ep
-	case api.TaskKindPython:
+	case build.TaskKindPython:
 		def.Python.Entrypoint = ep
-	case api.TaskKindShell:
+	case build.TaskKindShell:
 		def.Shell.Entrypoint = ep
 	default:
 		return errors.Errorf("unexpected kind %q", kind)

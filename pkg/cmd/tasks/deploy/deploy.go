@@ -10,6 +10,7 @@ import (
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/version"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -63,7 +64,7 @@ func New(c *cli.Config) *cobra.Command {
 // Set of properties to track when deploying
 type taskDeployedProps struct {
 	from       string
-	kind       api.TaskKind
+	kind       build.TaskKind
 	taskID     string
 	taskSlug   string
 	taskName   string

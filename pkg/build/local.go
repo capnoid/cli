@@ -7,10 +7,11 @@ import (
 	"github.com/airplanedev/cli/pkg/configs"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 )
 
-func (d *Deployer) local(ctx context.Context, req Request) (*Response, error) {
+func (d *Deployer) local(ctx context.Context, req Request) (*build.Response, error) {
 	registry, err := d.getRegistryToken(ctx, req.Client)
 
 	buildEnv, err := getBuildEnv(ctx, req.Client, req.Def)
@@ -27,11 +28,11 @@ func (d *Deployer) local(ctx context.Context, req Request) (*Response, error) {
 		options["shim"] = "true"
 	}
 
-	b, err := New(LocalConfig{
+	b, err := build.New(build.LocalConfig{
 		Root:    req.Root,
 		Builder: string(kind),
 		Options: options,
-		Auth: &RegistryAuth{
+		Auth: &build.RegistryAuth{
 			Token: registry.Token,
 			Repo:  registry.Repo,
 		},
