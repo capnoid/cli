@@ -1,8 +1,11 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net/url"
+	"os"
 	"path"
 	"regexp"
 
@@ -14,6 +17,8 @@ var (
 	//
 	// It is used to extract a slug from a comment in a script file.
 	commentRegex = regexp.MustCompile(`Linked to (https://.*air.*/t/.*) \[do not edit this line\]`)
+	// maxBytesToReadForSlug is the max bytes we should read in a file when looking for a task slug.
+	maxBytesToReadForSlug int64 = 4096
 )
 
 // Comment generates a linking comment that is used
@@ -24,10 +29,26 @@ func Comment(r Interface, task api.Task) string {
 	return r.FormatComment("Linked to " + task.URL + " [do not edit this line]")
 }
 
-// Slug returns the slug from the given code.
+// Slug returns the slug from the given file.
 //
 // Ok is true if the slug was found and isn't empty.
-func Slug(code []byte) (slug string, ok bool) {
+func Slug(filePath string) (slug string, ok bool) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	return slugFromReader(file)
+}
+
+func slugFromReader(reader io.Reader) (slug string, ok bool) {
+	code := make([]byte, maxBytesToReadForSlug)
+	_, err := io.ReadFull(reader, code)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return
+	}
+
 	result := commentRegex.FindSubmatch(code)
 	if len(result) == 0 {
 		return

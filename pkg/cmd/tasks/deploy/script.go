@@ -155,12 +155,7 @@ func (d *scriptDeployer) discoverScripts(ctx context.Context, paths ...string) (
 			continue
 		}
 		// We found a file.
-		code, err := ioutil.ReadFile(p)
-		if err != nil {
-			return nil, errors.Wrapf(err, "reading %s", p)
-		}
-
-		slug, ok := runtime.Slug(code)
+		slug, ok := runtime.Slug(p)
 		if !ok {
 			// File is not an Airplane script.
 			continue

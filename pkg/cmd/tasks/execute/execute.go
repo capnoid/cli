@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -195,12 +194,7 @@ func slugFromYaml(file string) (string, error) {
 
 // slugFromScript attempts to extract a slug from a script.
 func slugFromScript(file string) (string, error) {
-	code, err := ioutil.ReadFile(file)
-	if err != nil {
-		return "", fmt.Errorf("cannot read file %s - %w", file, err)
-	}
-
-	slug, ok := runtime.Slug(code)
+	slug, ok := runtime.Slug(file)
 	if !ok {
 		return "", runtime.ErrNotLinked{Path: file}
 	}

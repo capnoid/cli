@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -50,18 +51,10 @@ console.log('ship it')`,
 			slug: "myslug",
 			ok:   true,
 		},
-		{
-			name: "extracts slug correctly regardless of line number",
-			in: `import airplane from 'airplane'
-console.log('ship it')
-
-// Linked to https://app.airplane.dev/t/myslug [do not edit this line]`,
-			slug: "myslug",
-			ok:   true,
-		},
 	} {
 		tt.Run(test.name, func(t *testing.T) {
-			slug, ok := Slug([]byte(test.in))
+			buf := strings.NewReader(test.in)
+			slug, ok := slugFromReader(buf)
 			require.Equal(t, test.ok, ok)
 			require.Equal(t, test.slug, slug)
 		})

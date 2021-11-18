@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -237,12 +236,7 @@ func getDevEnv(r runtime.Interface, path string) (map[string]string, error) {
 
 // slugFromScript attempts to extract a slug from a file based on its contents.
 func slugFromScript(file string) (string, error) {
-	code, err := ioutil.ReadFile(file)
-	if err != nil {
-		return "", fmt.Errorf("cannot read file %s - %w", file, err)
-	}
-
-	slug, ok := runtime.Slug(code)
+	slug, ok := runtime.Slug(file)
 	if !ok {
 		return "", runtime.ErrNotLinked{Path: file}
 	}

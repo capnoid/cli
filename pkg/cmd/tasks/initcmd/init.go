@@ -87,12 +87,7 @@ func run(ctx context.Context, cfg config) error {
 	}
 
 	if fsx.Exists(cfg.file) {
-		buf, err := ioutil.ReadFile(cfg.file)
-		if err != nil {
-			return err
-		}
-
-		if slug, ok := runtime.Slug(buf); ok && slug == task.Slug {
+		if slug, ok := runtime.Slug(cfg.file); ok && slug == task.Slug {
 			logger.Step("%s is already linked to %s", cfg.file, cfg.slug)
 			suggestNextSteps(cfg.file)
 			return nil
@@ -108,6 +103,10 @@ func run(ctx context.Context, cfg config) error {
 			return nil
 		}
 
+		buf, err := ioutil.ReadFile(cfg.file)
+		if err != nil {
+			return err
+		}
 		code := prependComment(buf, runtime.Comment(r, task))
 		// Note: 0644 is ignored because file already exists. Uses a reasonable default just in case.
 		if err := ioutil.WriteFile(cfg.file, code, 0644); err != nil {
