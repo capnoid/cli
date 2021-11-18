@@ -8,7 +8,6 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/version"
 	"github.com/pkg/errors"
@@ -18,7 +17,7 @@ import (
 type config struct {
 	root   *cli.Config
 	client *api.Client
-	file   string
+	paths  []string
 	local  bool
 
 	upgradeInterpolation bool
@@ -38,14 +37,13 @@ func New(c *cli.Config) *cobra.Command {
 			airplane tasks deploy ./task.ts
 			airplane tasks deploy --local ./task.js
 			airplane tasks deploy ./my-task.yml
+			airplane tasks deploy my-directory
+			airplane tasks deploy ./my-task1.yml ./my-task2.yml
 		`),
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if cfg.file != "" {
-				// A file was provided with the -f flag. This is deprecated.
-				logger.Warning(`The --file/-f flag is deprecated and will be removed in a future release. File paths should be passed as a positional argument instead: airplane deploy %s`, cfg.file)
-			} else if len(args) > 0 {
-				cfg.file = args[0]
+			if len(args) > 0 {
+				cfg.paths = args
 			} else {
 				return errors.New("expected 1 argument: airplane deploy ./path/to/file")
 			}
@@ -57,9 +55,7 @@ func New(c *cli.Config) *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&cfg.local, "local", "L", false, "use a local Docker daemon (instead of an Airplane-hosted builder)")
-	cmd.Flags().StringVarP(&cfg.file, "file", "f", "", "File to deploy (.yaml, .yml, .js, .ts)")
 	cmd.Flags().BoolVar(&cfg.upgradeInterpolation, "jst", false, "Upgrade interpolation to JST")
-	cli.Must(cmd.Flags().MarkHidden("file")) // --file is deprecated
 
 	return cmd
 }
@@ -80,11 +76,11 @@ func run(ctx context.Context, cfg config) error {
 		return err
 	}
 
-	ext := filepath.Ext(cfg.file)
+	ext := filepath.Ext(cfg.paths[0])
 
 	if ext == ".yml" || ext == ".yaml" {
 		return deployFromYaml(ctx, cfg)
 	}
 
-	return deployFromScript(ctx, cfg)
+	return NewDeployer().deployFromScript(ctx, cfg)
 }

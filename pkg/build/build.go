@@ -29,11 +29,11 @@ type Response struct {
 }
 
 // Run runs the build and returns an image URL.
-func Run(ctx context.Context, req Request) (*Response, error) {
+func Run(ctx context.Context, deployer *Deployer, req Request) (*Response, error) {
 	if req.Local {
-		return local(ctx, req)
+		return deployer.local(ctx, req)
 	}
-	return remote(ctx, req)
+	return deployer.remote(ctx, req)
 }
 
 // applyTemplate executes template t with the provided data and

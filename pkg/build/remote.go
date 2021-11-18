@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/airplanedev/archiver"
@@ -21,7 +22,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-func remote(ctx context.Context, req Request) (*Response, error) {
+type contextKey string
+
+const (
+	taskSlugContextKey contextKey = "taskSlug"
+)
+
+type Deployer struct {
+	getRegistryTokenMutex sync.Mutex
+	cachedRegistryToken   *api.RegistryTokenResponse
+}
+
+func (d *Deployer) remote(ctx context.Context, req Request) (*Response, error) {
+	ctx = context.WithValue(ctx, taskSlugContextKey, req.Def.Slug)
 	if err := confirmBuildRoot(req.Root); err != nil {
 		return nil, err
 	}
@@ -29,19 +42,16 @@ func remote(ctx context.Context, req Request) (*Response, error) {
 	defer loader.Stop()
 	loader.Start()
 
-	buildLog(api.LogLevelInfo, loader, logger.Gray("Building with %s as root...", relpath(req.Root)))
-
 	// Before performing a remote build, we must first update kind/kindOptions
 	// since the remote build relies on pulling those from the tasks table (for now).
 	if err := updateKindAndOptions(ctx, req.Client, req.Def, req.Shim); err != nil {
 		return nil, err
 	}
 
-	buildLog(api.LogLevelInfo, loader, logger.Gray("Authenticating with Airplane..."))
-
-	registry, err := req.Client.GetRegistryToken(ctx)
+	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Authenticating with Airplane..."))
+	registry, err := d.getRegistryToken(ctx, req.Client)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting registry token")
+		return nil, err
 	}
 
 	tmpdir, err := ioutil.TempDir("", "airplane-builds-")
@@ -51,12 +61,12 @@ func remote(ctx context.Context, req Request) (*Response, error) {
 	defer os.RemoveAll(tmpdir)
 
 	archivePath := path.Join(tmpdir, "archive.tar.gz")
-	buildLog(api.LogLevelInfo, loader, logger.Gray("Packaging and uploading %s to build the task...", req.Root))
+	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Packaging and uploading %s to build the task...", req.Root))
 	if err := archiveTaskDir(req.Def, req.Root, archivePath); err != nil {
 		return nil, err
 	}
 
-	uploadID, err := uploadArchive(ctx, req.Root, req.Client, archivePath, loader)
+	uploadID, err := uploadArchive(ctx, req.Client, archivePath, loader)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +95,21 @@ func remote(ctx context.Context, req Request) (*Response, error) {
 		ImageURL: imageURL,
 		BuildID:  build.Build.ID,
 	}, nil
+}
+
+func (d *Deployer) getRegistryToken(ctx context.Context, client *api.Client) (registryToken api.RegistryTokenResponse, err error) {
+	d.getRegistryTokenMutex.Lock()
+	defer d.getRegistryTokenMutex.Unlock()
+	if d.cachedRegistryToken != nil {
+		registryToken = *d.cachedRegistryToken
+	} else {
+		registryToken, err = client.GetRegistryToken(ctx)
+		if err != nil {
+			return registryToken, errors.Wrap(err, "getting registry token")
+		}
+		d.cachedRegistryToken = &registryToken
+	}
+	return registryToken, nil
 }
 
 func updateKindAndOptions(ctx context.Context, client *api.Client, def definitions.Definition, shim bool) error {
@@ -165,7 +190,7 @@ func archiveTaskDir(def definitions.Definition, root string, archivePath string)
 	return nil
 }
 
-func uploadArchive(ctx context.Context, root string, client *api.Client, archivePath string, loader *logger.Loader) (string, error) {
+func uploadArchive(ctx context.Context, client *api.Client, archivePath string, loader *logger.Loader) (string, error) {
 	loader.Start()
 
 	archive, err := os.OpenFile(archivePath, os.O_RDONLY, 0)
@@ -180,7 +205,7 @@ func uploadArchive(ctx context.Context, root string, client *api.Client, archive
 	}
 	sizeBytes := int(info.Size())
 
-	buildLog(api.LogLevelInfo, loader, logger.Gray("Uploading %s build archive...",
+	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Uploading %s build archive...",
 		humanize.Bytes(uint64(sizeBytes)),
 	))
 
@@ -212,7 +237,7 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 	loader := logger.NewLoader()
 	defer loader.Stop()
 	loader.Start()
-	buildLog(api.LogLevelInfo, loader, logger.Gray("Waiting for builder..."))
+	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Waiting for builder..."))
 
 	t := time.NewTicker(time.Second)
 
@@ -238,7 +263,7 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 					text = logger.Gray(strings.TrimPrefix(text, "[builder] "))
 				}
 
-				buildLog(l.Level, loader, text)
+				buildLog(ctx, l.Level, loader, text)
 			}
 
 			b, err := client.GetBuild(ctx, buildID)
@@ -250,13 +275,13 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 				loader.Stop()
 				switch b.Build.Status {
 				case api.BuildCancelled:
-					logger.Log("\nBuild " + logger.Bold(logger.Yellow("cancelled")))
+					buildLog(ctx, api.LogLevelInfo, loader, logger.Bold(logger.Yellow("cancelled")))
 					return errors.New("Build cancelled")
 				case api.BuildFailed:
-					logger.Log("\nBuild " + logger.Bold(logger.Red("failed")))
+					buildLog(ctx, api.LogLevelInfo, loader, logger.Bold(logger.Red("failed")))
 					return errors.New("Build failed")
 				case api.BuildSucceeded:
-					logger.Log("\nBuild " + logger.Bold(logger.Green("succeeded")))
+					buildLog(ctx, api.LogLevelInfo, loader, logger.Bold(logger.Green("succeeded")))
 				}
 
 				return nil
@@ -266,31 +291,19 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 	}
 }
 
-func buildLog(level api.LogLevel, loader *logger.Loader, msg string, args ...interface{}) {
+func buildLog(ctx context.Context, level api.LogLevel, loader *logger.Loader, msg string, args ...interface{}) {
+	taskSlug := ctx.Value(taskSlugContextKey).(string)
 	loaderActive := loader.IsActive()
 	loader.Stop()
+	buildMsg := fmt.Sprintf("[%s %s] ", logger.Yellow("build"), taskSlug)
 	if level == api.LogLevelDebug {
-		logger.Log("["+logger.Yellow("build")+"] ["+logger.Blue("debug")+"] "+msg, args...)
+		logger.Log(buildMsg+"["+logger.Blue("debug")+"] "+msg, args...)
 	} else {
-		logger.Log("["+logger.Yellow("build")+"] "+msg, args...)
+		logger.Log(buildMsg+msg, args...)
 	}
 	if loaderActive {
 		loader.Start()
 	}
-}
-
-// Relpath returns the relative using root and the cwd.
-func relpath(root string) string {
-	if path, err := os.Getwd(); err == nil {
-		if rp, err := filepath.Rel(path, root); err == nil {
-			if len(rp) == 0 || rp == "." {
-				// "." can be missed easily, change it to ./
-				return "./"
-			}
-			return "./" + rp
-		}
-	}
-	return root
 }
 
 func confirmBuildRoot(root string) error {

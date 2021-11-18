@@ -33,7 +33,7 @@ func deployFromYaml(ctx context.Context, cfg config) (rErr error) {
 		})
 	}()
 
-	dir, err := taskdir.Open(cfg.file)
+	dir, err := taskdir.Open(cfg.paths[0])
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ More information: https://apn.sh/jst-upgrade`)
 	if ok, err := build.NeedsBuilding(kind); err != nil {
 		return err
 	} else if ok {
-		resp, err := build.Run(ctx, build.Request{
+		resp, err := build.Run(ctx, &build.Deployer{}, build.Request{
 			Local:  cfg.local,
 			Client: client,
 			Root:   dir.DefinitionRootPath(),

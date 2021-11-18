@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/airplanedev/cli/pkg/analytics"
@@ -15,10 +18,164 @@ import (
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
-// DeployFromScript deploys from the given script.
-func deployFromScript(ctx context.Context, cfg config) (rErr error) {
+var ignoredDirectories = map[string]bool{
+	"node_modules": true,
+	"__pycache__":  true,
+	".git":         true,
+}
+
+type scriptDeployer struct {
+	deployer *build.Deployer
+
+	erroredTaskSlugs  map[string]error
+	deployedTaskSlugs []string
+	mu                sync.Mutex
+}
+
+func NewDeployer() *scriptDeployer {
+	return &scriptDeployer{
+		deployer:         &build.Deployer{},
+		erroredTaskSlugs: make(map[string]error),
+	}
+}
+
+// deployFromScript deploys N tasks from the given set of files or directories.
+func (d *scriptDeployer) deployFromScript(ctx context.Context, cfg config) error {
+	loader := logger.NewLoader()
+	loader.Start()
+	scriptsToDeploy, err := d.discoverScripts(ctx, cfg.paths...)
+	if err != nil {
+		return err
+	}
+	loader.Stop()
+
+	if len(scriptsToDeploy) == 0 {
+		logger.Log("No tasks to deploy")
+		return nil
+	}
+
+	noun := "task"
+	if len(scriptsToDeploy) > 1 {
+		noun = fmt.Sprintf("%ss", noun)
+	}
+	logger.Log("Deploying %v %v:\n", len(scriptsToDeploy), noun)
+	g := new(errgroup.Group)
+
+	var taskConfigs []taskConfig
+	// Print out a summary before deploying.
+	for _, script := range scriptsToDeploy {
+		tc, err := getTaskConfigFromScript(ctx, *cfg.client, script)
+		if err != nil {
+			return err
+		}
+		taskConfigs = append(taskConfigs, tc)
+
+		logger.Log(logger.Bold(tc.task.Slug))
+		logger.Log("Type: %s", tc.task.Kind)
+		logger.Log("Root directory: %s", relpath(tc.taskRoot))
+		if tc.workingDirectory != tc.taskRoot {
+			logger.Log("Working directory: %s", relpath(tc.workingDirectory))
+		}
+		logger.Log("URL: %s", cfg.client.TaskURL(tc.task.Slug))
+		logger.Log("")
+	}
+
+	// Concurrently deploy the tasks.
+	for _, tc := range taskConfigs {
+		tc := tc
+		g.Go(func() error {
+			err := d.deploySingleTaskFromScript(ctx, cfg, tc)
+			d.mu.Lock()
+			defer d.mu.Unlock()
+			if err != nil {
+				if !errors.As(err, &runtime.ErrNotLinked{}) {
+					d.erroredTaskSlugs[tc.task.Slug] = err
+					return err
+				}
+			} else {
+				d.deployedTaskSlugs = append(d.deployedTaskSlugs, tc.task.Slug)
+			}
+			return nil
+		})
+	}
+
+	groupErr := g.Wait()
+
+	// All of the deploys have finished.
+	for taskSlug, err := range d.erroredTaskSlugs {
+		logger.Log("\n" + logger.Bold(taskSlug))
+		logger.Log("Status: " + logger.Bold(logger.Red("failed")))
+		logger.Error(err.Error())
+	}
+	for _, slug := range d.deployedTaskSlugs {
+		logger.Log("\n" + logger.Bold(slug))
+		logger.Log("Status: %s", logger.Bold(logger.Green("succeeded")))
+		logger.Log("Execute the task: %s", cfg.client.TaskURL(slug))
+	}
+
+	return groupErr
+}
+
+type script struct {
+	file     string
+	taskSlug string
+}
+
+// discoverScripts recursively discovers Airplane task scripts.
+func (d *scriptDeployer) discoverScripts(ctx context.Context, paths ...string) ([]script, error) {
+	var scripts []script
+	for _, p := range paths {
+		if ignoredDirectories[p] {
+			continue
+		}
+		logger.Debug("Exploring file or directory: %s", p)
+		fileInfo, err := os.Stat(p)
+		if err != nil {
+			return nil, errors.Wrapf(err, "determining if %s is file or directory", p)
+		}
+
+		if fileInfo.IsDir() {
+			// We found a directory. Recursively explore all of the files and directories in it.
+			nestedFiles, err := ioutil.ReadDir(p)
+			if err != nil {
+				return nil, errors.Wrapf(err, "reading directory %s", p)
+			}
+			var nestedPaths []string
+			for _, nestedFile := range nestedFiles {
+				nestedPaths = append(nestedPaths, path.Join(p, nestedFile.Name()))
+			}
+			nestedScripts, err := d.discoverScripts(ctx, nestedPaths...)
+			if err != nil {
+				return nil, err
+			}
+			scripts = append(scripts, nestedScripts...)
+			continue
+		}
+		// We found a file.
+		code, err := ioutil.ReadFile(p)
+		if err != nil {
+			return nil, errors.Wrapf(err, "reading %s", p)
+		}
+
+		slug, ok := runtime.Slug(code)
+		if !ok {
+			// File is not an Airplane script.
+			continue
+		}
+
+		scripts = append(scripts, script{
+			file:     p,
+			taskSlug: slug,
+		})
+	}
+
+	return scripts, nil
+}
+
+func (d *scriptDeployer) deploySingleTaskFromScript(ctx context.Context, cfg config, tc taskConfig) (rErr error) {
 	client := cfg.client
 	tp := taskDeployedProps{
 		from: "script",
@@ -37,58 +194,12 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 		})
 	}()
 
-	code, err := ioutil.ReadFile(cfg.file)
-	if err != nil {
-		return errors.Wrapf(err, "reading %s", cfg.file)
-	}
+	task := tc.task
 
-	slug, ok := runtime.Slug(code)
-	if !ok {
-		return runtime.ErrNotLinked{Path: cfg.file}
-	}
-
-	task, err := client.GetTask(ctx, slug)
-	if err != nil {
-		return err
-	}
-	tp.kind = task.Kind
+	tp.kind = tc.kind
 	tp.taskID = task.ID
 	tp.taskSlug = task.Slug
 	tp.taskName = task.Name
-
-	r, err := runtime.Lookup(cfg.file, task.Kind)
-	if err != nil {
-		return errors.Wrapf(err, "cannot determine how to deploy %q - check your CLI is up to date", cfg.file)
-	}
-
-	def, err := definitions.NewDefinitionFromTask(task)
-	if err != nil {
-		return err
-	}
-
-	absFile, err := filepath.Abs(cfg.file)
-	if err != nil {
-		return err
-	}
-
-	taskroot, err := r.Root(absFile)
-	if err != nil {
-		return err
-	}
-	if err := def.SetEntrypoint(taskroot, absFile); err != nil {
-		return err
-	}
-
-	wd, err := r.Workdir(absFile)
-	if err != nil {
-		return err
-	}
-	def.SetWorkdir(taskroot, wd)
-
-	kind, kindOptions, err := def.GetKindAndOptions()
-	if err != nil {
-		return err
-	}
 
 	interpolationMode := task.InterpolationMode
 	if interpolationMode != "jst" {
@@ -96,7 +207,7 @@ func deployFromScript(ctx context.Context, cfg config) (rErr error) {
 			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
 More information: https://apn.sh/jst-upgrade`)
 			interpolationMode = "jst"
-			def.UpgradeJST()
+			tc.def.UpgradeJST()
 		} else {
 			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
 been automatically upgraded because of potential backwards-compatibility issues
@@ -109,13 +220,13 @@ More information: https://apn.sh/jst-upgrade`)
 	}
 
 	tp.buildLocal = cfg.local
-	resp, err := build.Run(ctx, build.Request{
+	resp, err := build.Run(ctx, d.deployer, build.Request{
 		Local:   cfg.local,
 		Client:  client,
 		TaskID:  task.ID,
-		Root:    taskroot,
-		Def:     def,
-		TaskEnv: def.Env,
+		Root:    tc.taskRoot,
+		Def:     tc.def,
+		TaskEnv: tc.def.Env,
 		Shim:    true,
 	})
 	if err != nil {
@@ -124,40 +235,99 @@ More information: https://apn.sh/jst-upgrade`)
 	tp.buildID = resp.BuildID
 
 	_, err = client.UpdateTask(ctx, api.UpdateTaskRequest{
-		Slug:                       def.Slug,
-		Name:                       def.Name,
-		Description:                def.Description,
+		Slug:                       tc.def.Slug,
+		Name:                       tc.def.Name,
+		Description:                tc.def.Description,
 		Image:                      &resp.ImageURL,
 		Command:                    []string{},
-		Arguments:                  def.Arguments,
-		Parameters:                 def.Parameters,
-		Constraints:                def.Constraints,
-		Env:                        def.Env,
-		ResourceRequests:           def.ResourceRequests,
-		Resources:                  def.Resources,
-		Kind:                       kind,
-		KindOptions:                kindOptions,
-		Repo:                       def.Repo,
+		Arguments:                  tc.def.Arguments,
+		Parameters:                 tc.def.Parameters,
+		Constraints:                tc.def.Constraints,
+		Env:                        tc.def.Env,
+		ResourceRequests:           tc.def.ResourceRequests,
+		Resources:                  tc.def.Resources,
+		Kind:                       tc.kind,
+		KindOptions:                tc.kindOptions,
+		Repo:                       tc.def.Repo,
 		RequireExplicitPermissions: task.RequireExplicitPermissions,
 		Permissions:                task.Permissions,
-		Timeout:                    def.Timeout,
+		Timeout:                    tc.def.Timeout,
 		BuildID:                    pointers.String(resp.BuildID),
 		InterpolationMode:          interpolationMode,
 	})
+	return err
+}
+
+type taskConfig struct {
+	taskRoot         string
+	workingDirectory string
+	task             api.Task
+	def              definitions.Definition
+	kind             api.TaskKind
+	kindOptions      api.KindOptions
+}
+
+// getTaskConfig a task and associated information from a script.
+func getTaskConfigFromScript(ctx context.Context, client api.Client, script script) (taskConfig, error) {
+	task, err := client.GetTask(ctx, script.taskSlug)
 	if err != nil {
-		return err
+		return taskConfig{}, err
 	}
 
-	// Leave off `-- [parameters]` for simplicity - user will get prompted.
-	cmd := fmt.Sprintf("airplane exec %s", cfg.file)
-	logger.Suggest(
-		"⚡ To execute the task from the CLI:",
-		cmd,
-	)
+	r, err := runtime.Lookup(script.file, task.Kind)
+	if err != nil {
+		return taskConfig{}, errors.Wrapf(err, "cannot determine how to deploy %q - check your CLI is up to date", script.file)
+	}
 
-	logger.Suggest(
-		"⚡ To execute the task from the UI:",
-		client.TaskURL(task.Slug),
-	)
-	return nil
+	def, err := definitions.NewDefinitionFromTask(task)
+	if err != nil {
+		return taskConfig{}, err
+	}
+
+	absFile, err := filepath.Abs(script.file)
+	if err != nil {
+		return taskConfig{}, err
+	}
+
+	taskroot, err := r.Root(absFile)
+	if err != nil {
+		return taskConfig{}, err
+	}
+	if err := def.SetEntrypoint(taskroot, absFile); err != nil {
+		return taskConfig{}, err
+	}
+
+	wd, err := r.Workdir(absFile)
+	if err != nil {
+		return taskConfig{}, err
+	}
+	def.SetWorkdir(taskroot, wd)
+
+	kind, kindOptions, err := def.GetKindAndOptions()
+	if err != nil {
+		return taskConfig{}, err
+	}
+
+	return taskConfig{
+		taskRoot:         taskroot,
+		workingDirectory: wd,
+		def:              def,
+		kind:             kind,
+		kindOptions:      kindOptions,
+		task:             task,
+	}, nil
+}
+
+// Relpath returns the relative using root and the cwd.
+func relpath(root string) string {
+	if path, err := os.Getwd(); err == nil {
+		if rp, err := filepath.Rel(path, root); err == nil {
+			if len(rp) == 0 || rp == "." {
+				// "." can be missed easily, change it to ./
+				return "./"
+			}
+			return "./" + rp
+		}
+	}
+	return root
 }

@@ -10,11 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func local(ctx context.Context, req Request) (*Response, error) {
-	registry, err := req.Client.GetRegistryToken(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting registry token")
-	}
+func (d *Deployer) local(ctx context.Context, req Request) (*Response, error) {
+	registry, err := d.getRegistryToken(ctx, req.Client)
 
 	buildEnv, err := getBuildEnv(ctx, req.Client, req.Def)
 	if err != nil {
