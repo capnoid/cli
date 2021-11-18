@@ -37,7 +37,7 @@ type scriptDeployer struct {
 
 func NewDeployer() *scriptDeployer {
 	return &scriptDeployer{
-		deployer:         &build.Deployer{},
+		deployer:         build.NewDeployer(),
 		erroredTaskSlugs: make(map[string]error),
 	}
 }

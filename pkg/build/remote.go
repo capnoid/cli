@@ -20,6 +20,7 @@ import (
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/singleflight"
 )
 
 type contextKey string
@@ -31,6 +32,15 @@ const (
 type Deployer struct {
 	getRegistryTokenMutex sync.Mutex
 	cachedRegistryToken   *api.RegistryTokenResponse
+
+	uploadArchiveSingleFlightGroup singleflight.Group
+	uploadedArchives               map[string]string
+}
+
+func NewDeployer() *Deployer {
+	return &Deployer{
+		uploadedArchives: make(map[string]string),
+	}
 }
 
 func (d *Deployer) remote(ctx context.Context, req Request) (*Response, error) {
@@ -66,10 +76,14 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*Response, error) {
 		return nil, err
 	}
 
-	uploadID, err := uploadArchive(ctx, req.Client, archivePath, loader)
+	uploadIDRes, err, _ := d.uploadArchiveSingleFlightGroup.Do(req.Root, func() (interface{}, error) {
+		return d.uploadArchive(ctx, req.Client, archivePath, req.Root, loader)
+	})
+
 	if err != nil {
 		return nil, err
 	}
+	uploadID := uploadIDRes.(string)
 
 	build, err := req.Client.CreateBuild(ctx, api.CreateBuildRequest{
 		TaskID:         req.TaskID,
@@ -190,7 +204,14 @@ func archiveTaskDir(def definitions.Definition, root string, archivePath string)
 	return nil
 }
 
-func uploadArchive(ctx context.Context, client *api.Client, archivePath string, loader *logger.Loader) (string, error) {
+func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archivePath, rootPath string, loader *logger.Loader) (string, error) {
+	// Check if anyone has uploaded an archive for this path.
+	uid, ok := d.uploadedArchives[rootPath]
+	if ok {
+		// Somebody has already uploaded the path. Re-use the upload ID.
+		return uid, nil
+	}
+
 	loader.Start()
 
 	archive, err := os.OpenFile(archivePath, os.O_RDONLY, 0)
@@ -229,8 +250,12 @@ func uploadArchive(ctx context.Context, client *api.Client, archivePath string, 
 	defer resp.Body.Close()
 
 	logger.Debug("Upload complete: %s", upload.Upload.URL)
+	uploadID := upload.Upload.ID
 
-	return upload.Upload.ID, nil
+	// Populate the cache so that we can reuse the upload.
+	d.uploadedArchives[rootPath] = uploadID
+
+	return uploadID, nil
 }
 
 func waitForBuild(ctx context.Context, client *api.Client, buildID string) error {

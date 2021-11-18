@@ -142,7 +142,7 @@ More information: https://apn.sh/jst-upgrade`)
 	if ok, err := build.NeedsBuilding(kind); err != nil {
 		return err
 	} else if ok {
-		resp, err := build.Run(ctx, &build.Deployer{}, build.Request{
+		resp, err := build.Run(ctx, build.NewDeployer(), build.Request{
 			Local:  cfg.local,
 			Client: client,
 			Root:   dir.DefinitionRootPath(),
