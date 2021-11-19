@@ -194,7 +194,7 @@ type Parameter struct {
 type Constraints struct {
 	Optional bool               `json:"optional" yaml:"optional,omitempty"`
 	Regex    string             `json:"regex" yaml:"regex,omitempty"`
-	Options  []ConstraintOption `json:"options,omitempty"`
+	Options  []ConstraintOption `json:"options,omitempty" yaml:"options,omitempty"`
 }
 
 type ConstraintOption struct {
