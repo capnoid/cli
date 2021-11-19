@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/examples"
-	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/runtime/runtimetest"
+	"github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +30,7 @@ func TestDev(tt *testing.T) {
 
 	tests := []runtimetest.Test{
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "javascript/simple/main.js"},
 		},
 	}

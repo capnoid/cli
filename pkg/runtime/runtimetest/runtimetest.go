@@ -13,13 +13,14 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/examples"
 	"github.com/airplanedev/cli/pkg/runtime"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/otiai10/copy"
 	"github.com/segmentio/ksuid"
 	"github.com/stretchr/testify/require"
 )
 
 type Test struct {
-	Kind api.TaskKind
+	Kind build.TaskKind
 	Opts runtime.PrepareRunOptions
 	// SearchString is a string to look for in the example's output
 	// to validate that the task completed successfully. If not set,

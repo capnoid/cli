@@ -2,6 +2,7 @@ package definitions
 
 import (
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
@@ -18,7 +19,7 @@ type Definition_0_1 struct {
 	Env            api.TaskEnv        `yaml:"env,omitempty"`
 	ResourceLimits map[string]string  `yaml:"resourceLimits,omitempty"`
 	Builder        string             `yaml:"builder,omitempty"`
-	BuilderConfig  api.KindOptions    `yaml:"builderConfig,omitempty"`
+	BuilderConfig  build.KindOptions  `yaml:"builderConfig,omitempty"`
 	Repo           string             `yaml:"repo,omitempty"`
 	Timeout        int                `yaml:"timeout,omitempty"`
 

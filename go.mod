@@ -7,12 +7,11 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/Microsoft/hcsshim v0.9.1 // indirect
 	github.com/airplanedev/archiver v1.1.3-0.20210823174045-ee4b23880021
-	github.com/airplanedev/dlog v0.0.0-20210615011719-ca8d3becde5e
 	github.com/alecthomas/jsonschema v0.0.0-20211022214203-8b29eab41725
 	github.com/andybalholm/brotli v1.0.3 // indirect
 	github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible
 	github.com/blang/semver/v4 v4.0.0
-	github.com/docker/docker v20.10.10+incompatible
+	github.com/docker/docker v20.10.10+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/evanw/esbuild v0.13.14
@@ -34,7 +33,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/otiai10/copy v1.7.0
 	github.com/pkg/errors v0.9.1
-	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
+	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
 	github.com/segmentio/analytics-go v1.2.1-0.20201110202747-0566e489c7b9
 	github.com/segmentio/backo-go v0.0.0-20200129164019-23eae7c10bd3 // indirect
 	github.com/segmentio/events/v2 v2.4.0
@@ -52,7 +51,7 @@ require (
 )
 
 require (
-	github.com/airplanedev/lib v0.0.3
+	github.com/airplanedev/lib v0.1.1
 	github.com/airplanedev/ojson v0.1.0
 	github.com/briandowns/spinner v1.16.0
 )

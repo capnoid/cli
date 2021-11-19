@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/examples"
-	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/runtime/runtimetest"
+	"github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,32 +19,32 @@ func TestDev(tt *testing.T) {
 
 	tests := []runtimetest.Test{
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/simple/main.ts"},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/npm/main.ts"},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/yarn/main.ts"},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/imports/task/main.ts"},
 		},
 		{
-			Kind:         api.TaskKindNode,
+			Kind:         build.TaskKindNode,
 			Opts:         runtime.PrepareRunOptions{Path: "typescript/noparams/main.ts"},
 			SearchString: "success",
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/esnext/main.ts"},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{
 				Path: "typescript/esnext/main.ts",
 				// This tests that we can compile to an older version of Node syntax.
@@ -53,30 +53,30 @@ func TestDev(tt *testing.T) {
 				// latest version of Node) it doesn't actually test that the compiled
 				// code _runs_ in an older version of Node. We have more control over
 				// this in our Docker-based builder tests, so we test that there.
-				KindOptions: api.KindOptions{"nodeVersion": "12"},
+				KindOptions: build.KindOptions{"nodeVersion": "12"},
 			},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{
 				Path: "typescript/esnext/main.ts",
 				// See nodeVersion comment above.
-				KindOptions: api.KindOptions{"nodeVersion": "14"},
+				KindOptions: build.KindOptions{"nodeVersion": "14"},
 			},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/esm/main.ts"},
 		},
 		{
-			Kind: api.TaskKindNode,
+			Kind: build.TaskKindNode,
 			Opts: runtime.PrepareRunOptions{Path: "typescript/aliases/main.ts"},
 		},
 		// TODO: debug why yarn workspaces aren't working. Seems like we would need to compile
 		// pkg1 before compiling pkg2. Once we do that, add an npm workspaces variant along with
 		// JS variants.
 		// {
-		// 	Kind: api.TaskKindNode,
+		// 	Kind: build.TaskKindNode,
 		// 	Opts: runtime.PrepareRunOptions{Path: "typescript/yarnworkspaces/pkg2/src/index.ts"},
 		// },
 	}

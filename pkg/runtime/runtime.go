@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 )
 
@@ -61,7 +62,7 @@ type Interface interface {
 	//
 	// Generate and other methods should not be called
 	// for a task that doesn't match the returned kind.
-	Kind() api.TaskKind
+	Kind() build.TaskKind
 
 	// FormatComment formats a string into a comment using
 	// the relevant comment characters for this runtime.
@@ -95,7 +96,7 @@ type PrepareRunOptions struct {
 	ParamValues api.Values
 
 	// KindOptions specifies any runtime-specific task configuration.
-	KindOptions api.KindOptions
+	KindOptions build.KindOptions
 }
 
 // Runtimes is a collection of registered runtimes.
@@ -113,7 +114,7 @@ func Register(ext string, r Interface) {
 
 // Lookup returns a runtime by kind and path.
 // If an extension match is found, use that runtime. Otherwise rely on the task kind.
-func Lookup(path string, kind api.TaskKind) (Interface, error) {
+func Lookup(path string, kind build.TaskKind) (Interface, error) {
 	ext := filepath.Ext(path)
 	if runtime, ok := runtimes[ext]; ok {
 		return runtime, nil
@@ -138,7 +139,7 @@ func Lookup(path string, kind api.TaskKind) (Interface, error) {
 }
 
 // SuggestExt returns the default extension for a given TaskKind, if any.
-func SuggestExt(kind api.TaskKind) string {
+func SuggestExt(kind build.TaskKind) string {
 	for ext, runtime := range runtimes {
 		if runtime.Kind() == kind {
 			return ext

@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/build"
-	"github.com/airplanedev/cli/pkg/fsx"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/utils/handlebars"
+	"github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/pkg/errors"
 )
 
@@ -126,8 +126,8 @@ func (r Runtime) Root(path string) (string, error) {
 }
 
 // Kind implementation.
-func (r Runtime) Kind() api.TaskKind {
-	return api.TaskKindShell
+func (r Runtime) Kind() build.TaskKind {
+	return build.TaskKindShell
 }
 
 // FormatComment implementation.
