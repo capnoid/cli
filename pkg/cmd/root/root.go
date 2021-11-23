@@ -21,9 +21,9 @@ import (
 	"github.com/airplanedev/cli/pkg/cmd/tasks/initcmd"
 	"github.com/airplanedev/cli/pkg/cmd/version"
 	"github.com/airplanedev/cli/pkg/conf"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/print"
 	"github.com/airplanedev/cli/pkg/trap"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	isatty "github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )

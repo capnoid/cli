@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/blang/semver/v4"
 	esbuild "github.com/evanw/esbuild/pkg/api"

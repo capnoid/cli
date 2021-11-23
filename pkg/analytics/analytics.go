@@ -7,9 +7,9 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/conf"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/version"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/getsentry/sentry-go"
 	"github.com/segmentio/analytics-go"
 )

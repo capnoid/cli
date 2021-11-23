@@ -13,12 +13,12 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/params"
 	"github.com/airplanedev/cli/pkg/print"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/taskdir"
 	"github.com/airplanedev/cli/pkg/utils"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )

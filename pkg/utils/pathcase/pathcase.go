@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/pkg/errors"
 )
 

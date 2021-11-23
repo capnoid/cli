@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/params"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/airplanedev/ojson"
 	"github.com/olekukonko/tablewriter"
 )

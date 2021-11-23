@@ -13,7 +13,7 @@ import (
 	"github.com/airplanedev/cli/pkg/analytics"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
-	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
@@ -45,7 +45,7 @@ func NewDeployer() *scriptDeployer {
 
 // deployFromScript deploys N tasks from the given set of files or directories.
 func (d *scriptDeployer) deployFromScript(ctx context.Context, cfg config) error {
-	loader := logger.NewLoader()
+	loader := logger.NewLoader(logger.LoaderOpts{HideLoader: logger.EnableDebug})
 	loader.Start()
 	scriptsToDeploy, err := d.discoverScripts(ctx, cfg.paths...)
 	if err != nil {

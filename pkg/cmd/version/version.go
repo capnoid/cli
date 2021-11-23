@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/airplanedev/cli/pkg/cli"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/version"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/spf13/cobra"
 )
 

@@ -2,7 +2,7 @@ package cli
 
 import (
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/golang-jwt/jwt/v4"
 )
 

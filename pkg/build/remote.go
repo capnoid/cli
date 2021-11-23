@@ -14,11 +14,11 @@ import (
 
 	"github.com/airplanedev/archiver"
 	"github.com/airplanedev/cli/pkg/api"
-	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils"
 	libBuild "github.com/airplanedev/lib/pkg/build"
 	"github.com/airplanedev/lib/pkg/build/ignore"
+	"github.com/airplanedev/lib/pkg/build/logger"
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/singleflight"
@@ -49,7 +49,7 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response,
 	if err := confirmBuildRoot(req.Root); err != nil {
 		return nil, err
 	}
-	loader := logger.NewLoader()
+	loader := logger.NewLoader(logger.LoaderOpts{HideLoader: logger.EnableDebug})
 	defer loader.Stop()
 	loader.Start()
 
@@ -205,7 +205,7 @@ func archiveTaskDir(def definitions.Definition, root string, archivePath string)
 	return nil
 }
 
-func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archivePath, rootPath string, loader *logger.Loader) (string, error) {
+func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archivePath, rootPath string, loader logger.Loader) (string, error) {
 	// Check if anyone has uploaded an archive for this path.
 	uid, ok := d.uploadedArchives[rootPath]
 	if ok {
@@ -260,7 +260,7 @@ func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archiv
 }
 
 func waitForBuild(ctx context.Context, client *api.Client, buildID string) error {
-	loader := logger.NewLoader()
+	loader := logger.NewLoader(logger.LoaderOpts{HideLoader: logger.EnableDebug})
 	defer loader.Stop()
 	loader.Start()
 	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Waiting for builder..."))
@@ -317,7 +317,7 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 	}
 }
 
-func buildLog(ctx context.Context, level api.LogLevel, loader *logger.Loader, msg string, args ...interface{}) {
+func buildLog(ctx context.Context, level api.LogLevel, loader logger.Loader, msg string, args ...interface{}) {
 	taskSlug := ctx.Value(taskSlugContextKey).(string)
 	loaderActive := loader.IsActive()
 	loader.Stop()

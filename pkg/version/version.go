@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/lib/pkg/build/logger"
 )
 
 // Set by Go Releaser.
