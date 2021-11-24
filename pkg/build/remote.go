@@ -90,6 +90,7 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response,
 		TaskID:         req.TaskID,
 		SourceUploadID: uploadID,
 		Env:            req.TaskEnv,
+		GitConfig:      req.GitConfig,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "creating build")

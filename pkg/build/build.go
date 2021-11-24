@@ -10,13 +10,14 @@ import (
 
 // Request represents a build request.
 type Request struct {
-	Local   bool
-	Client  *api.Client
-	Root    string
-	Def     definitions.Definition
-	TaskID  string
-	TaskEnv api.TaskEnv
-	Shim    bool
+	Local     bool
+	Client    *api.Client
+	Root      string
+	Def       definitions.Definition
+	TaskID    string
+	TaskEnv   api.TaskEnv
+	Shim      bool
+	GitConfig api.BuildGitConfig
 }
 
 // Response represents a build response.
