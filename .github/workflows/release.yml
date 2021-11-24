@@ -23,6 +23,7 @@ jobs:
           project_id: airplane-prod
           service_account_key: ${{ secrets.GCP_KEY }}
           export_default_credentials: true
+          credentials_file_path: ${{ env.RUNNER_TEMP }}
       - name: Configure Docker to use Artifact Registry
         run: gcloud auth configure-docker us-docker.pkg.dev
       - name: Run GoReleaser

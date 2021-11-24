@@ -68,3 +68,4 @@ dockers:
   - image_templates:
     - us-docker.pkg.dev/airplane-prod/public/cli:latest
     - us-docker.pkg.dev/airplane-prod/public/cli:{{ trimprefix .Tag "v" }}
+    - us-docker.pkg.dev/airplane-prod/public/cli:{{ .Major }}.{{ .Minor }}
