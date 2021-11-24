@@ -16,10 +16,11 @@ import (
 )
 
 type gitConfig struct {
-	commitHash string
-	branch     string
-	user       string
-	repository string
+	commitHash    string
+	commitMessage string
+	branch        string
+	user          string
+	repository    string
 }
 type config struct {
 	root   *cli.Config
@@ -65,13 +66,15 @@ func New(c *cli.Config) *cobra.Command {
 	cmd.Flags().BoolVarP(&cfg.local, "local", "L", false, "use a local Docker daemon (instead of an Airplane-hosted builder)")
 	cmd.Flags().BoolVar(&cfg.upgradeInterpolation, "jst", false, "Upgrade interpolation to JST")
 	cmd.Flags().StringVar(&cfg.git.commitHash, "commitHash", "", "The commit hash of the source code of the deployed task")
+	cmd.Flags().StringVar(&cfg.git.commitMessage, "commitMessage", "", "The commit message the deployed task was pushed with")
 	cmd.Flags().StringVar(&cfg.git.branch, "branch", "", "The branch containing the source code of the deployed task")
 	cmd.Flags().StringVar(&cfg.git.repository, "repository", "", "The repository containing the source code of the deployed task")
 	cmd.Flags().StringVar(&cfg.git.user, "gitUser", "", "The git user who deployed the task")
-	cli.Must(cmd.Flags().MarkHidden("commitHash")) // internal use only
-	cli.Must(cmd.Flags().MarkHidden("branch"))     // internal use only
-	cli.Must(cmd.Flags().MarkHidden("repository")) // internal use only
-	cli.Must(cmd.Flags().MarkHidden("gitUser"))    // internal use only
+	cli.Must(cmd.Flags().MarkHidden("commitHash"))    // internal use only
+	cli.Must(cmd.Flags().MarkHidden("commitMessage")) // internal use only
+	cli.Must(cmd.Flags().MarkHidden("branch"))        // internal use only
+	cli.Must(cmd.Flags().MarkHidden("repository"))    // internal use only
+	cli.Must(cmd.Flags().MarkHidden("gitUser"))       // internal use only
 
 	return cmd
 }

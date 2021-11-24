@@ -225,10 +225,11 @@ More information: https://apn.sh/jst-upgrade`)
 		TaskEnv: tc.def.Env,
 		Shim:    true,
 		GitConfig: api.BuildGitConfig{
-			CommitHash: cfg.git.commitHash,
-			Branch:     cfg.git.branch,
-			User:       cfg.git.user,
-			Repository: cfg.git.repository,
+			CommitHash:    cfg.git.commitHash,
+			Branch:        cfg.git.branch,
+			User:          cfg.git.user,
+			Repository:    cfg.git.repository,
+			CommitMessage: cfg.git.commitMessage,
 		},
 	})
 	if err != nil {

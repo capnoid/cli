@@ -457,10 +457,11 @@ type CreateBuildRequest struct {
 }
 
 type BuildGitConfig struct {
-	CommitHash string `json:"commitHash"`
-	Branch     string `json:"branch"`
-	User       string `json:"gitUser"`
-	Repository string `json:"repository"`
+	CommitHash    string `json:"commitHash"`
+	Branch        string `json:"branch"`
+	User          string `json:"gitUser"`
+	Repository    string `json:"repository"`
+	CommitMessage string `json:"commitMessage"`
 }
 
 type CreateBuildResponse struct {
