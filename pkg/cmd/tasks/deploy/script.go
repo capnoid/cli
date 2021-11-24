@@ -224,13 +224,7 @@ More information: https://apn.sh/jst-upgrade`)
 		Def:     tc.def,
 		TaskEnv: tc.def.Env,
 		Shim:    true,
-		GitConfig: api.BuildGitConfig{
-			CommitHash:    cfg.git.commitHash,
-			Branch:        cfg.git.branch,
-			User:          cfg.git.user,
-			Repository:    cfg.git.repository,
-			CommitMessage: cfg.git.commitMessage,
-		},
+		GitMeta: cfg.gitMeta,
 	})
 	if err != nil {
 		return err
