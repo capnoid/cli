@@ -462,6 +462,7 @@ type BuildGitMeta struct {
 	User          string `json:"gitUser"`
 	Repository    string `json:"repository"`
 	CommitMessage string `json:"commitMessage"`
+	FilePath      string `json:"filePath"`
 	IsDirty       bool   `json:"isDirty"`
 }
 
