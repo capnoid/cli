@@ -63,9 +63,9 @@ func New(c *cli.Config) *cobra.Command {
 	cmd.Flags().BoolVarP(&cfg.local, "local", "L", false, "use a local Docker daemon (instead of an Airplane-hosted builder)")
 	cmd.Flags().BoolVar(&cfg.upgradeInterpolation, "jst", false, "Upgrade interpolation to JST")
 	cmd.Flags().StringVar(&cfg.gitRepoMeta.repository, "repository", "", "The repository containing the source code of the deployed task")
-	cmd.Flags().StringVar(&cfg.gitRepoMeta.user, "gitUser", "", "The git user who deployed the task")
+	cmd.Flags().StringVar(&cfg.gitRepoMeta.user, "git-user", "", "The git user who deployed the task")
 	cli.Must(cmd.Flags().MarkHidden("repository")) // internal use only
-	cli.Must(cmd.Flags().MarkHidden("gitUser"))    // internal use only
+	cli.Must(cmd.Flags().MarkHidden("git-user"))    // internal use only
 
 	return cmd
 }
