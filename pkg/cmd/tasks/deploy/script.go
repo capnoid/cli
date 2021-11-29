@@ -14,6 +14,7 @@ import (
 	"github.com/airplanedev/cli/pkg/analytics"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
+	"github.com/airplanedev/cli/pkg/conf"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
@@ -220,13 +221,10 @@ More information: https://apn.sh/jst-upgrade`)
 
 	gitMeta, err := getGitMetadata(tc.taskFilePath)
 	if err != nil {
-		fmt.Println(err)
 		logger.Debug("failed to gather git metadata: %v", err)
 	}
-	gitMeta.User = cfg.gitRepoMeta.user
-	gitMeta.Repository = cfg.gitRepoMeta.repository
-
-	fmt.Println("booop", gitMeta.FilePath)
+	gitMeta.User = conf.GetGitUser()
+	gitMeta.Repository = conf.GetGitRepo()
 
 	resp, err := build.Run(ctx, d.deployer, build.Request{
 		Local:   cfg.local,
