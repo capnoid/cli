@@ -49,7 +49,7 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response,
 	if err := confirmBuildRoot(req.Root); err != nil {
 		return nil, err
 	}
-	loader := logger.NewLoader()
+	loader := logger.NewLoader(logger.LoaderOpts{HideLoader: logger.EnableDebug})
 	defer loader.Stop()
 	loader.Start()
 
@@ -97,7 +97,7 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response,
 	}
 	logger.Debug("Created build with id=%s", build.Build.ID)
 
-	if err := waitForBuild(ctx, req.Client, build.Build.ID); err != nil {
+	if err := waitForBuild(ctx, loader, req.Client, build.Build.ID); err != nil {
 		return nil, err
 	}
 
@@ -206,7 +206,7 @@ func archiveTaskDir(def definitions.Definition, root string, archivePath string)
 	return nil
 }
 
-func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archivePath, rootPath string, loader *logger.Loader) (string, error) {
+func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archivePath, rootPath string, loader logger.Loader) (string, error) {
 	// Check if anyone has uploaded an archive for this path.
 	uid, ok := d.uploadedArchives[rootPath]
 	if ok {
@@ -260,9 +260,7 @@ func (d *Deployer) uploadArchive(ctx context.Context, client *api.Client, archiv
 	return uploadID, nil
 }
 
-func waitForBuild(ctx context.Context, client *api.Client, buildID string) error {
-	loader := logger.NewLoader()
-	defer loader.Stop()
+func waitForBuild(ctx context.Context, loader logger.Loader, client *api.Client, buildID string) error {
 	loader.Start()
 	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Waiting for builder..."))
 
@@ -318,7 +316,7 @@ func waitForBuild(ctx context.Context, client *api.Client, buildID string) error
 	}
 }
 
-func buildLog(ctx context.Context, level api.LogLevel, loader *logger.Loader, msg string, args ...interface{}) {
+func buildLog(ctx context.Context, level api.LogLevel, loader logger.Loader, msg string, args ...interface{}) {
 	taskSlug := ctx.Value(taskSlugContextKey).(string)
 	loaderActive := loader.IsActive()
 	loader.Stop()

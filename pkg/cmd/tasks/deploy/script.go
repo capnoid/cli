@@ -48,7 +48,7 @@ func NewDeployer() *scriptDeployer {
 
 // deployFromScript deploys N tasks from the given set of files or directories.
 func (d *scriptDeployer) deployFromScript(ctx context.Context, cfg config) error {
-	loader := logger.NewLoader()
+	loader := logger.NewLoader(logger.LoaderOpts{HideLoader: logger.EnableDebug})
 	loader.Start()
 	scriptsToDeploy, err := d.discoverScripts(ctx, cfg.paths...)
 	if err != nil {
