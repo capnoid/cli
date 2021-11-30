@@ -222,6 +222,7 @@ More information: https://apn.sh/jst-upgrade`)
 	gitMeta, err := getGitMetadata(tc.taskFilePath)
 	if err != nil {
 		logger.Debug("failed to gather git metadata: %v", err)
+		analytics.ReportError(errors.Wrap(err, "failed to gather git metadata"))
 	}
 	gitMeta.User = conf.GetGitUser()
 	gitMeta.Repository = conf.GetGitRepo()
