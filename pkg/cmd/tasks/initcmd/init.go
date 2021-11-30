@@ -33,6 +33,12 @@ type config struct {
 	client *api.Client
 	file   string
 	slug   string
+
+	dev       bool
+	codeOnly  bool
+	defFormat string
+	assumeYes bool
+	assumeNo  bool
 }
 
 func New(c *cli.Config) *cobra.Command {
@@ -59,7 +65,31 @@ func New(c *cli.Config) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&cfg.slug, "slug", "", "Slug of an existing task to generate from.")
-	if err := cmd.MarkFlagRequired("slug"); err != nil {
+
+	// Remove dev flag + unhide these flags + deprecate `slug` before release!
+	cmd.Flags().BoolVar(&cfg.dev, "dev", false, "Dev mode: warning, not guaranteed to work and subject to change.")
+	cmd.Flags().StringVar(&cfg.slug, "from", "", "Slug of an existing task to initialize.")
+	cmd.Flags().BoolVar(&cfg.codeOnly, "code-only", false, "True to skip creating a task definition file; only generates an entrypoint file.")
+	cmd.Flags().StringVar(&cfg.defFormat, "def-format", "", `One of "json" or "yaml". Defaults to "yaml".`)
+	cmd.Flags().BoolVarP(&cfg.assumeYes, "yes", "y", false, "True to specify automatic yes to prompts.")
+	cmd.Flags().BoolVarP(&cfg.assumeNo, "no", "n", false, "True to specify automatic no to prompts.")
+
+	if err := cmd.Flags().MarkHidden("dev"); err != nil {
+		logger.Debug("error: %s", err)
+	}
+	if err := cmd.Flags().MarkHidden("from"); err != nil {
+		logger.Debug("error: %s", err)
+	}
+	if err := cmd.Flags().MarkHidden("code-only"); err != nil {
+		logger.Debug("error: %s", err)
+	}
+	if err := cmd.Flags().MarkHidden("def-format"); err != nil {
+		logger.Debug("error: %s", err)
+	}
+	if err := cmd.Flags().MarkHidden("yes"); err != nil {
+		logger.Debug("error: %s", err)
+	}
+	if err := cmd.Flags().MarkHidden("no"); err != nil {
 		logger.Debug("error: %s", err)
 	}
 
@@ -67,7 +97,44 @@ func New(c *cli.Config) *cobra.Command {
 }
 
 func run(ctx context.Context, cfg config) error {
+	if !cfg.dev {
+		return initCodeOnly(ctx, cfg)
+	}
+
+	// Check for mutually exclusive flags.
+	if cfg.codeOnly && cfg.defFormat != "" {
+		return errors.New("Cannot specify both --code-only and --def-format")
+	}
+	if cfg.assumeYes && cfg.assumeNo {
+		return errors.New("Cannot specify both --yes and --no")
+	}
+
+	if cfg.codeOnly {
+		return initCodeOnly(ctx, cfg)
+	}
+
+	return initWithTaskDef(ctx, cfg)
+}
+
+func initWithTaskDef(ctx context.Context, cfg config) error {
+	// Check for a valid defFormat, add in a default if necessary.
+	if cfg.defFormat == "" {
+		cfg.defFormat = "yaml"
+	}
+	if cfg.defFormat != "yaml" && cfg.defFormat != "json" {
+		return errors.Errorf("Invalid \"def-format\" specified: %s", cfg.defFormat)
+	}
+
+	return errors.New("NotImplemented")
+}
+
+func initCodeOnly(ctx context.Context, cfg config) error {
 	client := cfg.client
+
+	// Require slug for now. If `dev` is specified and `slug` is not, we should have a new-task prompt.
+	if cfg.slug == "" {
+		return errors.New("Required flag(s) \"slug\" not set")
+	}
 
 	task, err := client.GetTask(ctx, cfg.slug)
 	if err != nil {
