@@ -450,9 +450,20 @@ type GetBuildResponse struct {
 }
 
 type CreateBuildRequest struct {
-	TaskID         string  `json:"taskID"`
-	SourceUploadID string  `json:"sourceUploadID"`
-	Env            TaskEnv `json:"env"`
+	TaskID         string       `json:"taskID"`
+	SourceUploadID string       `json:"sourceUploadID"`
+	Env            TaskEnv      `json:"env"`
+	GitMeta        BuildGitMeta `json:"gitMeta"`
+}
+
+type BuildGitMeta struct {
+	CommitHash    string `json:"commitHash"`
+	Ref           string `json:"gitRef"`
+	User          string `json:"gitUser"`
+	Repository    string `json:"repository"`
+	CommitMessage string `json:"commitMessage"`
+	FilePath      string `json:"filePath"`
+	IsDirty       bool   `json:"isDirty"`
 }
 
 type CreateBuildResponse struct {

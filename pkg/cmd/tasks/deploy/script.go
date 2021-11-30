@@ -7,17 +7,20 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/airplanedev/cli/pkg/analytics"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
+	"github.com/airplanedev/cli/pkg/conf"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
 	libBuild "github.com/airplanedev/lib/pkg/build"
+	"github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -196,6 +199,7 @@ func (d *scriptDeployer) deploySingleTaskFromScript(ctx context.Context, cfg con
 	tp.taskID = task.ID
 	tp.taskSlug = task.Slug
 	tp.taskName = task.Name
+	tp.buildLocal = cfg.local
 
 	interpolationMode := task.InterpolationMode
 	if interpolationMode != "jst" {
@@ -215,7 +219,14 @@ More information: https://apn.sh/jst-upgrade`)
 		}
 	}
 
-	tp.buildLocal = cfg.local
+	gitMeta, err := getGitMetadata(tc.taskFilePath)
+	if err != nil {
+		logger.Debug("failed to gather git metadata: %v", err)
+		analytics.ReportError(errors.Wrap(err, "failed to gather git metadata"))
+	}
+	gitMeta.User = conf.GetGitUser()
+	gitMeta.Repository = conf.GetGitRepo()
+
 	resp, err := build.Run(ctx, d.deployer, build.Request{
 		Local:   cfg.local,
 		Client:  client,
@@ -224,6 +235,7 @@ More information: https://apn.sh/jst-upgrade`)
 		Def:     tc.def,
 		TaskEnv: tc.def.Env,
 		Shim:    true,
+		GitMeta: gitMeta,
 	})
 	if err != nil {
 		return err
@@ -257,6 +269,7 @@ More information: https://apn.sh/jst-upgrade`)
 type taskConfig struct {
 	taskRoot         string
 	workingDirectory string
+	taskFilePath     string
 	task             api.Task
 	def              definitions.Definition
 	kind             libBuild.TaskKind
@@ -307,11 +320,65 @@ func getTaskConfigFromScript(ctx context.Context, client api.Client, script scri
 	return taskConfig{
 		taskRoot:         taskroot,
 		workingDirectory: wd,
+		taskFilePath:     absFile,
 		def:              def,
 		kind:             kind,
 		kindOptions:      kindOptions,
 		task:             task,
 	}, nil
+}
+
+func getGitMetadata(taskFilePath string) (api.BuildGitMeta, error) {
+	meta := api.BuildGitMeta{}
+
+	repo, err := git.PlainOpenWithOptions(filepath.Dir(taskFilePath), &git.PlainOpenOptions{
+		DetectDotGit: true,
+	})
+	if err != nil {
+		if errors.Is(err, git.ErrRepositoryNotExists) {
+			return meta, nil
+		}
+		return meta, err
+	}
+
+	w, err := repo.Worktree()
+	if err != nil {
+		return meta, err
+	}
+	pathRelativeToGitRoot, err := filepath.Rel(w.Filesystem.Root(), taskFilePath)
+	if err != nil {
+		return meta, err
+	}
+	meta.FilePath = pathRelativeToGitRoot
+
+	status, err := w.Status()
+	if err != nil {
+		return meta, err
+	}
+	meta.IsDirty = !status.IsClean()
+
+	h, err := repo.Head()
+	if err != nil {
+		return meta, err
+	}
+
+	commit, err := repo.CommitObject(h.Hash())
+	if err != nil {
+		return meta, err
+	}
+	meta.CommitHash = commit.Hash.String()
+	meta.CommitMessage = commit.Message
+	if meta.User != "" {
+		meta.User = commit.Author.Name
+	}
+
+	ref := h.Name().String()
+	if h.Name().IsBranch() {
+		ref = strings.TrimPrefix(ref, "refs/heads/")
+	}
+	meta.Ref = ref
+
+	return meta, nil
 }
 
 // Relpath returns the relative using root and the cwd.

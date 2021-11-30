@@ -91,3 +91,13 @@ func GetAPIKey() string {
 func GetTeamID() string {
 	return os.Getenv("AP_TEAM_ID")
 }
+
+// GetGitRepo gets a git repo from an env var, if one exists.
+func GetGitRepo() string {
+	return os.Getenv("AP_GIT_REPO")
+}
+
+// GetGitUser gets a git user from an env var, if one exists.
+func GetGitUser() string {
+	return os.Getenv("AP_GIT_USER")
+}

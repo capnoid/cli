@@ -17,6 +17,7 @@ type Request struct {
 	TaskID  string
 	TaskEnv api.TaskEnv
 	Shim    bool
+	GitMeta api.BuildGitMeta
 }
 
 // Response represents a build response.
