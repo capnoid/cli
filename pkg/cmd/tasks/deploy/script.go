@@ -334,6 +334,9 @@ func getGitMetadata(taskFilePath string) (api.BuildGitMeta, error) {
 		DetectDotGit: true,
 	})
 	if err != nil {
+		if errors.Is(err, git.ErrRepositoryNotExists) {
+			return meta, nil
+		}
 		return meta, err
 	}
 
