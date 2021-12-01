@@ -12,6 +12,7 @@ builds:
       - -s -w -X github.com/airplanedev/cli/pkg/version.version={{.Version}} -X github.com/airplanedev/cli/pkg/version.date={{.Date}}
       - -X github.com/airplanedev/cli/pkg/analytics.segmentWriteKey={{.Env.SEGMENT_WRITE_KEY}}
       - -X github.com/airplanedev/cli/pkg/analytics.sentryDSN={{.Env.SENTRY_DSN}}
+      - -X github.com/airplanedev/cli/pkg/flags/launchdarkly.launchdarklySDKKey={{.Env.LAUNCHDARKLY_SDK_KEY}}
     goos:
       - linux
       - windows

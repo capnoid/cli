@@ -21,11 +21,14 @@ import (
 	"github.com/airplanedev/cli/pkg/cmd/tasks/initcmd"
 	"github.com/airplanedev/cli/pkg/cmd/version"
 	"github.com/airplanedev/cli/pkg/conf"
+	"github.com/airplanedev/cli/pkg/flags/launchdarkly"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/print"
 	"github.com/airplanedev/cli/pkg/trap"
+	"github.com/joho/godotenv"
 	isatty "github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // New returns a new root cobra command.
@@ -34,6 +37,7 @@ func New() *cobra.Command {
 	var cfg = &cli.Config{
 		Client: &api.Client{},
 	}
+	var ldf *launchdarkly.Client
 
 	cmd := &cobra.Command{
 		Use:   "airplane <command>",
@@ -44,6 +48,10 @@ func New() *cobra.Command {
 			airplane deploy ./path/to/script
 		`),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			godotenv.Load("cli.env")
+			viper.SetEnvPrefix("ap")
+			viper.SetDefault("launchdarkly_sdk_key", "")
+			viper.AutomaticEnv()
 			if c, err := conf.ReadDefault(); err == nil {
 				cfg.Client.Token = c.Tokens[cfg.Client.Host]
 			}
@@ -52,6 +60,14 @@ func New() *cobra.Command {
 			if err := analytics.Init(cfg); err != nil {
 				logger.Debug("error in analytics.Init: %v", err)
 			}
+
+			// LaunchDarkly
+			var err error
+			ldf, err = launchdarkly.NewClient(cfg)
+			if err != nil {
+				logger.Debug("error in launchdarkly.NewClient: %v", err)
+			}
+			cfg.Flagger = ldf
 
 			switch output {
 			case "json":
@@ -75,6 +91,7 @@ func New() *cobra.Command {
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			analytics.Close()
+			ldf.Close()
 		},
 	}
 

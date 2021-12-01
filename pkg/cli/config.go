@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/flags"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -27,6 +28,9 @@ type Config struct {
 
 	// Version indicates if the CLI version should be printed.
 	Version bool
+
+	// Flagger evaluates feature flags.
+	Flagger flags.Flagger
 }
 
 // ParseTokenForAnalytics parses UNVERIFIED JWT information - this information can be spoofed.
