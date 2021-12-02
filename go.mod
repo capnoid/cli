@@ -11,7 +11,7 @@ require (
 	github.com/aymerick/raymond v2.0.3-0.20180322193309-b565731e1464+incompatible
 	github.com/blang/semver/v4 v4.0.0
 	github.com/dustin/go-humanize v1.0.0
-	github.com/evanw/esbuild v0.14.0
+	github.com/evanw/esbuild v0.14.1
 	github.com/fatih/color v1.13.0
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/go-git/go-git/v5 v5.4.2
@@ -23,7 +23,7 @@ require (
 	github.com/kr/pty v1.1.8 // indirect
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-isatty v0.0.14
-	github.com/mitchellh/mapstructure v1.4.2
+	github.com/mitchellh/mapstructure v1.4.3
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/otiai10/copy v1.7.0
 	github.com/pkg/errors v0.9.1
