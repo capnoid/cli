@@ -45,7 +45,7 @@ require (
 	github.com/briandowns/spinner v1.16.0
 )
 
-require golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+require golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
