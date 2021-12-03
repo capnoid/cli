@@ -27,8 +27,10 @@ func init() {
 
 // Code template.
 var code = template.Must(template.New("sh").Parse(`#!/bin/bash
+{{with .Comment -}}
 {{.Comment}}
 
+{{end -}}
 # Params are in environment variables as PARAM_{SLUG}, e.g. PARAM_USER_ID
 echo "Hello World!"
 echo "Printing env for debugging purposes:"
@@ -103,11 +105,14 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 }
 
 // Generate implementation.
-func (r Runtime) Generate(t api.Task) ([]byte, os.FileMode, error) {
-	var args = data{Comment: runtime.Comment(r, t)}
-	var buf bytes.Buffer
+func (r Runtime) Generate(t *api.Task) ([]byte, os.FileMode, error) {
+	d := data{}
+	if t != nil {
+		d.Comment = runtime.Comment(r, *t)
+	}
 
-	if err := code.Execute(&buf, args); err != nil {
+	var buf bytes.Buffer
+	if err := code.Execute(&buf, d); err != nil {
 		return nil, 0, fmt.Errorf("shell: template execute - %w", err)
 	}
 

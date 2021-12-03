@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/MakeNowJust/heredoc"
@@ -23,7 +24,9 @@ import (
 	_ "github.com/airplanedev/cli/pkg/runtime/python"
 	_ "github.com/airplanedev/cli/pkg/runtime/shell"
 	_ "github.com/airplanedev/cli/pkg/runtime/typescript"
+	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils"
+	"github.com/airplanedev/lib/pkg/build"
 	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -39,6 +42,14 @@ type config struct {
 	defFormat string
 	assumeYes bool
 	assumeNo  bool
+
+	newTaskInfo newTaskInfo
+}
+
+type newTaskInfo struct {
+	name       string
+	kind       build.TaskKind
+	entrypoint string
 }
 
 func New(c *cli.Config) *cobra.Command {
@@ -109,6 +120,19 @@ func run(ctx context.Context, cfg config) error {
 		return errors.New("Cannot specify both --yes and --no")
 	}
 
+	// Extrapolate defFormat from the specified file, if it's a definition file.
+	defFormat := definitions.GetTaskDefFormat(cfg.file)
+	if defFormat != definitions.TaskDefFormatUnknown {
+		cfg.defFormat = string(defFormat)
+	}
+
+	if cfg.slug == "" {
+		// Prompt for new task information.
+		if err := promptForNewTask(cfg.file, &cfg.newTaskInfo); err != nil {
+			return err
+		}
+	}
+
 	if cfg.codeOnly {
 		return initCodeOnly(ctx, cfg)
 	}
@@ -117,6 +141,8 @@ func run(ctx context.Context, cfg config) error {
 }
 
 func initWithTaskDef(ctx context.Context, cfg config) error {
+	client := cfg.client
+
 	// Check for a valid defFormat, add in a default if necessary.
 	if cfg.defFormat == "" {
 		cfg.defFormat = "yaml"
@@ -125,13 +151,82 @@ func initWithTaskDef(ctx context.Context, cfg config) error {
 		return errors.Errorf("Invalid \"def-format\" specified: %s", cfg.defFormat)
 	}
 
-	return errors.New("NotImplemented")
+	var name string
+	var kind build.TaskKind
+	var entrypoint string
+	var slug string
+
+	if cfg.slug != "" {
+		task, err := client.GetTask(ctx, cfg.slug)
+		if err != nil {
+			return err
+		}
+
+		name = task.Name
+		kind = task.Kind
+		slug = task.Slug
+		// TODO: handle this properly
+		entrypoint = task.KindOptions["entrypoint"].(string)
+	} else {
+		if cfg.newTaskInfo.name == "" || cfg.newTaskInfo.kind == "" {
+			return errors.New("missing new task info")
+		}
+		name = cfg.newTaskInfo.name
+		kind = cfg.newTaskInfo.kind
+		entrypoint = cfg.newTaskInfo.entrypoint
+		slug = utils.MakeSlug(name)
+	}
+
+	r, err := runtime.Lookup(entrypoint, kind)
+	if err != nil {
+		return errors.Wrapf(err, "unable to init %q - check that your CLI is up to date", entrypoint)
+	}
+
+	// Create entrypoint, without comment link, if it doesn't exist.
+	if !fsx.Exists(entrypoint) {
+		if err := createEntrypoint(r, entrypoint, nil); err != nil {
+			return errors.Wrapf(err, "unable to create entrypoint")
+		}
+		logger.Step("Created %s", entrypoint)
+	} else {
+		logger.Step("%s already exists", entrypoint)
+	}
+
+	// Create task defn file.
+	defFn := fmt.Sprintf("%s.task.%s", slug, cfg.defFormat)
+	if fsx.Exists(defFn) {
+		// If it exists, check for existence of this file before overwriting it.
+		if ok, err := confirm(fmt.Sprintf("Would you like to overwrite %s?", defFn), "", cfg.assumeYes, cfg.assumeNo); err != nil {
+			return err
+		} else if !ok {
+			// User answered "no", so bail here.
+			return nil
+		}
+	}
+
+	def, err := definitions.NewDefinition_0_3(name, slug, kind, entrypoint)
+	if err != nil {
+		return err
+	}
+
+	buf, err := def.Contents(definitions.TaskDefFormat(cfg.defFormat))
+	if err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(defFn, buf, 0644); err != nil {
+		return err
+	}
+	logger.Step("Created %s", defFn)
+	suggestNextSteps(defFn)
+	return nil
 }
 
 func initCodeOnly(ctx context.Context, cfg config) error {
 	client := cfg.client
 
-	// Require slug for now. If `dev` is specified and `slug` is not, we should have a new-task prompt.
+	// Require slug for now. If `dev` is specified and `slug` is not, we should initialize based on
+	// the new task info.
 	if cfg.slug == "" {
 		return errors.New("Required flag(s) \"slug\" not set")
 	}
@@ -185,19 +280,9 @@ func initCodeOnly(ctx context.Context, cfg config) error {
 		return nil
 	}
 
-	code, fileMode, err := r.Generate(task)
-	if err != nil {
+	if err := createEntrypoint(r, cfg.file, &task); err != nil {
 		return err
 	}
-
-	if err := os.MkdirAll(filepath.Dir(cfg.file), 0755); err != nil {
-		return err
-	}
-
-	if err := ioutil.WriteFile(cfg.file, code, fileMode); err != nil {
-		return err
-	}
-
 	logger.Step("Created %s", cfg.file)
 	suggestNextSteps(cfg.file)
 	return nil
@@ -282,6 +367,109 @@ func promptForNewFileName(task api.Task) (string, error) {
 	return fileName, nil
 }
 
+var namesByKind = map[build.TaskKind]string{
+	build.TaskKindDeno:       "Deno",
+	build.TaskKindDockerfile: "Dockerfile",
+	build.TaskKindGo:         "Go",
+	build.TaskKindImage:      "Docker",
+	build.TaskKindNode:       "Node",
+	build.TaskKindPython:     "Python",
+	build.TaskKindShell:      "Shell",
+
+	build.TaskKindSQL:  "SQL",
+	build.TaskKindREST: "REST",
+}
+
+var orderedKindNames = []string{
+	"SQL",
+	"REST",
+	"Node",
+	"Python",
+	"Shell",
+	"Docker",
+	"Deno",
+	"Dockerfile",
+	"Go",
+}
+
+func promptForNewTask(file string, info *newTaskInfo) error {
+	defFormat := definitions.GetTaskDefFormat(file)
+	ext := filepath.Ext(file)
+	base := strings.TrimSuffix(file, ext)
+	if defFormat != definitions.TaskDefFormatUnknown {
+		// Trim off the .task part, too
+		base = strings.TrimSuffix(base, ".task")
+	}
+
+	// Ask for a name.
+	if err := survey.AskOne(
+		&survey.Input{
+			Message: "What should this task be called?",
+			Default: base,
+		},
+		&info.name,
+	); err != nil {
+		return err
+	}
+
+	// Ask for a kind.
+	var defaultKind interface{}
+	guessKind, err := runtime.SuggestKind(ext)
+	if err != nil {
+		defaultKind = orderedKindNames[0]
+	} else {
+		defaultKind = namesByKind[guessKind]
+	}
+
+	var selectedKindName string
+	if err := survey.AskOne(
+		&survey.Select{
+			Message: "What kind of task should this be?",
+			Options: orderedKindNames,
+			Default: defaultKind,
+		},
+		&selectedKindName,
+	); err != nil {
+		return err
+	}
+	for kind, name := range namesByKind {
+		if name == selectedKindName {
+			info.kind = kind
+			break
+		}
+	}
+	if info.kind == "" {
+		return errors.Errorf("Unknown kind selected: %s", selectedKindName)
+	}
+
+	// Ask for an entrypoint, maybe.
+	if info.kind != build.TaskKindREST && info.kind != build.TaskKindImage {
+		if file != "" && !definitions.IsTaskDef(file) {
+			info.entrypoint = file
+		} else {
+			fileName := utils.MakeSlug(info.name) + runtime.SuggestExt(info.kind)
+			if cwdIsHome, err := cwdIsHome(); err != nil {
+				return err
+			} else if cwdIsHome {
+				// Suggest a subdirectory to avoid putting a file directly into home directory.
+				fileName = filepath.Join("airplane", fileName)
+			}
+
+			if err := survey.AskOne(
+				&survey.Input{
+					Message: "Where should the script be created?",
+					Default: fileName,
+				},
+				&info.entrypoint,
+			); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func cwdIsHome() (bool, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -292,4 +480,44 @@ func cwdIsHome() (bool, error) {
 		return false, err
 	}
 	return cwd == home, nil
+}
+
+func createEntrypoint(r runtime.Interface, entrypoint string, task *api.Task) error {
+	code, fileMode, err := r.Generate(task)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(filepath.Dir(entrypoint), 0755); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(entrypoint, code, fileMode); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func confirm(msg, help string, assumeYes, assumeNo bool) (bool, error) {
+	if assumeYes {
+		return true, nil
+	}
+	if assumeNo {
+		return false, nil
+	}
+
+	// Prompt user.
+	var ok bool
+	if err := survey.AskOne(
+		&survey.Confirm{
+			Message: msg,
+			Help:    help,
+			Default: true,
+		},
+		&ok,
+	); err != nil {
+		return false, err
+	}
+	return ok, nil
 }

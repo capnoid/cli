@@ -43,7 +43,7 @@ type Interface interface {
 	//
 	// os.FileMode is used for the permissions of the generated file. Files will typically use 0644
 	// but might use 0744 for executable scripts (e.g. shell scripts).
-	Generate(task api.Task) ([]byte, os.FileMode, error)
+	Generate(task *api.Task) ([]byte, os.FileMode, error)
 
 	// Workdir attempts to detect the root of the given task path.
 	//
@@ -146,6 +146,13 @@ func SuggestExt(kind build.TaskKind) string {
 		}
 	}
 	return ""
+}
+
+func SuggestKind(ext string) (build.TaskKind, error) {
+	if runtime, ok := runtimes[ext]; ok {
+		return runtime.Kind(), nil
+	}
+	return "", errors.New("No kind to suggest")
 }
 
 func CloseFunc(f func() error) io.Closer {

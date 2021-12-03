@@ -17,8 +17,10 @@ func init() {
 }
 
 // Code template.
-var code = template.Must(template.New("ts").Parse(`{{.Comment}}
+var code = template.Must(template.New("ts").Parse(`{{with .Comment -}}
+{{.}}
 
+{{end -}}
 type Params = {
   {{- range .Params }}
   {{ .Name }}: {{ .Type }}
@@ -56,19 +58,20 @@ type Runtime struct {
 }
 
 // Generate implementation.
-func (r Runtime) Generate(t api.Task) ([]byte, fs.FileMode, error) {
-	var args = data{Comment: runtime.Comment(r, t)}
-	var params = t.Parameters
-	var buf bytes.Buffer
-
-	for _, p := range params {
-		args.Params = append(args.Params, param{
-			Name: p.Slug,
-			Type: typeof(p.Type),
-		})
+func (r Runtime) Generate(t *api.Task) ([]byte, fs.FileMode, error) {
+	d := data{}
+	if t != nil {
+		d.Comment = runtime.Comment(r, *t)
+		for _, p := range t.Parameters {
+			d.Params = append(d.Params, param{
+				Name: p.Slug,
+				Type: typeof(p.Type),
+			})
+		}
 	}
 
-	if err := code.Execute(&buf, args); err != nil {
+	var buf bytes.Buffer
+	if err := code.Execute(&buf, d); err != nil {
 		return nil, 0, fmt.Errorf("typescript: template execute - %w", err)
 	}
 

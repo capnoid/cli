@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/lib/pkg/build"
+	"github.com/pkg/errors"
 )
 
 type Definition_0_3 struct {
@@ -24,8 +26,8 @@ type Definition_0_3 struct {
 	SQL  *SQLDefinition_0_3  `json:"sql,omitempty"`
 	REST *RESTDefinition_0_3 `json:"rest,omitempty"`
 
-	Permissions PermissionDefinition_0_3 `json:"permissions,omitempty"`
-	Constraints api.RunConstraints       `json:"constraints,omitempty"`
+	Permissions *PermissionDefinition_0_3 `json:"permissions,omitempty"`
+	Constraints *api.RunConstraints       `json:"constraints,omitempty"`
 	// TODO: default 3600
 	Timeout int `json:"timeout,omitempty"`
 }
@@ -149,3 +151,67 @@ type PermissionDefinition_0_3 struct {
 
 //go:embed schema_0_3.json
 var schemaStr string
+
+func NewDefinition_0_3(name string, slug string, kind build.TaskKind, entrypoint string) (Definition_0_3, error) {
+	def := Definition_0_3{
+		Name: name,
+		Slug: slug,
+	}
+
+	switch kind {
+	case build.TaskKindDeno:
+		def.Deno = &DenoDefinition_0_3{
+			Entrypoint: entrypoint,
+		}
+	case build.TaskKindDockerfile:
+		def.Dockerfile = &DockerfileDefinition_0_3{
+			Dockerfile: entrypoint,
+		}
+	case build.TaskKindGo:
+		def.Go = &GoDefinition_0_3{
+			Entrypoint: entrypoint,
+		}
+	case build.TaskKindImage:
+		def.Image = &ImageDefinition_0_3{}
+	case build.TaskKindNode:
+		def.Node = &NodeDefinition_0_3{
+			Entrypoint: entrypoint,
+		}
+	case build.TaskKindPython:
+		def.Python = &PythonDefinition_0_3{
+			Entrypoint: entrypoint,
+		}
+	case build.TaskKindShell:
+		def.Shell = &ShellDefinition_0_3{
+			Entrypoint: entrypoint,
+		}
+	case build.TaskKindSQL:
+		def.SQL = &SQLDefinition_0_3{
+			Entrypoint: entrypoint,
+		}
+	case build.TaskKindREST:
+		def.REST = &RESTDefinition_0_3{}
+	default:
+		return Definition_0_3{}, errors.Errorf("unknown kind: %s", kind)
+	}
+
+	return def, nil
+}
+
+func (d Definition_0_3) Contents(format TaskDefFormat) ([]byte, error) {
+	buf, err := json.MarshalIndent(d, "", "\t")
+	if err != nil {
+		return nil, err
+	}
+
+	switch format {
+	case TaskDefFormatYAML:
+		return nil, errors.New("NotImplemented")
+	case TaskDefFormatJSON:
+		// nothing
+	default:
+		return nil, errors.Errorf("unknown format: %s", format)
+	}
+
+	return buf, nil
+}

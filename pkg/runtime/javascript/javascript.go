@@ -30,8 +30,10 @@ func init() {
 }
 
 // Code template.
-var code = template.Must(template.New("js").Parse(`{{.Comment}}
+var code = template.Must(template.New("js").Parse(`{{with .Comment -}}
+{{.}}
 
+{{end -}}
 // Put the main logic of the task in this function.
 export default async function(params) {
   console.log('parameters:', params);
@@ -54,11 +56,14 @@ type data struct {
 type Runtime struct{}
 
 // Generate implementation.
-func (r Runtime) Generate(t api.Task) ([]byte, fs.FileMode, error) {
-	var args = data{Comment: runtime.Comment(r, t)}
-	var buf bytes.Buffer
+func (r Runtime) Generate(t *api.Task) ([]byte, fs.FileMode, error) {
+	d := data{}
+	if t != nil {
+		d.Comment = runtime.Comment(r, *t)
+	}
 
-	if err := code.Execute(&buf, args); err != nil {
+	var buf bytes.Buffer
+	if err := code.Execute(&buf, d); err != nil {
 		return nil, 0, fmt.Errorf("javascript: template execute - %w", err)
 	}
 
