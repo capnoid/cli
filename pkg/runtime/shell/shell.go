@@ -13,6 +13,7 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/runtime"
+	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/utils/handlebars"
 	"github.com/airplanedev/lib/pkg/build"
 	"github.com/airplanedev/lib/pkg/utils/fsx"
@@ -44,6 +45,10 @@ type Runtime struct{}
 
 // PrepareRun implementation.
 func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions) (rexprs []string, rcloser io.Closer, rerr error) {
+	if err := checkAndPromptFileExecutable(opts.Path); err != nil {
+		return nil, nil, err
+	}
+
 	root, err := r.Root(opts.Path)
 	if err != nil {
 		return nil, nil, err
@@ -139,4 +144,40 @@ func (r Runtime) FormatComment(s string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// checkAndPromptFileExecutable checks that a file is executable. If it isn't, it prompts the user to make it
+// executable. Returns an error if the file is not executable.
+func checkAndPromptFileExecutable(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return errors.Wrap(err, "describing file")
+	}
+	if isExecOwner(info.Mode()) {
+		return nil
+	}
+	var allow bool
+	readablePath := path
+	if utils.CanPrompt() {
+		wd, err := os.Getwd()
+		if err == nil {
+			relPath, err := filepath.Rel(wd, path)
+			if err == nil {
+				readablePath = relPath
+			}
+		}
+		allow, _ = utils.Confirm(fmt.Sprintf("File %s is not executable. Do you want to make your file executable?", readablePath))
+	}
+	if !allow {
+		return errors.Errorf("File %s is not executable. Run `chmod +x %s` to make it executable.", readablePath, readablePath)
+	}
+	if err = os.Chmod(path, info.Mode()|0100); err != nil {
+		return errors.Wrap(err, "making file executable")
+	}
+	return nil
+}
+
+// isExecOwner returns whether a file is executable by its owner.
+func isExecOwner(mode os.FileMode) bool {
+	return mode&0100 != 0
 }
