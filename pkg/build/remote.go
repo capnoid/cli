@@ -45,7 +45,11 @@ func NewDeployer() *Deployer {
 }
 
 func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response, error) {
-	ctx = context.WithValue(ctx, taskSlugContextKey, req.Def.Slug)
+	if req.Def_0_3 != nil {
+		ctx = context.WithValue(ctx, taskSlugContextKey, req.Def_0_3.Slug)
+	} else {
+		ctx = context.WithValue(ctx, taskSlugContextKey, req.Def.Slug)
+	}
 	if err := confirmBuildRoot(req.Root); err != nil {
 		return nil, err
 	}
@@ -55,8 +59,14 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response,
 
 	// Before performing a remote build, we must first update kind/kindOptions
 	// since the remote build relies on pulling those from the tasks table (for now).
-	if err := updateKindAndOptions(ctx, req.Client, req.Def, req.Shim); err != nil {
-		return nil, err
+	if req.Def_0_3 != nil {
+		if err := updateKindAndOptions_0_3(ctx, req.Client, *req.Def_0_3, req.Shim); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := updateKindAndOptions(ctx, req.Client, req.Def, req.Shim); err != nil {
+			return nil, err
+		}
 	}
 
 	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Authenticating with Airplane..."))
@@ -73,7 +83,7 @@ func (d *Deployer) remote(ctx context.Context, req Request) (*libBuild.Response,
 
 	archivePath := path.Join(tmpdir, "archive.tar.gz")
 	buildLog(ctx, api.LogLevelInfo, loader, logger.Gray("Packaging and uploading %s to build the task...", req.Root))
-	if err := archiveTaskDir(req.Def, req.Root, archivePath); err != nil {
+	if err := archiveTaskDir(req.Root, archivePath); err != nil {
 		return nil, err
 	}
 
@@ -178,7 +188,32 @@ func updateKindAndOptions(ctx context.Context, client *api.Client, def definitio
 	return nil
 }
 
-func archiveTaskDir(def definitions.Definition, root string, archivePath string) error {
+func updateKindAndOptions_0_3(ctx context.Context, client *api.Client, def definitions.Definition_0_3, shim bool) error {
+	utr, err := def.UpdateTaskRequest(ctx, client, nil)
+	if err != nil {
+		return err
+	}
+
+	// Conditionally instruct the remote builder API to perform a shim-based build.
+	if shim {
+		utr.KindOptions["shim"] = "true"
+	}
+
+	// Normalize entrypoint to `/` regardless of OS.
+	// CLI might be run from Windows or not Windows, but remote API is on Linux.
+	if ep, ok := utr.KindOptions["entrypoint"].(string); ok {
+		utr.KindOptions["entrypoint"] = filepath.ToSlash(ep)
+	}
+
+	_, err = client.UpdateTask(ctx, utr)
+	if err != nil {
+		return errors.Wrapf(err, "updating task %s", def.Slug)
+	}
+
+	return nil
+}
+
+func archiveTaskDir(root string, archivePath string) error {
 	// mholt/archiver takes a list of "sources" (files/directories) that will
 	// be included in the root of the archive. In our case, we want the root of
 	// the archive to be the contents of the task directory, rather than the
