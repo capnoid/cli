@@ -209,7 +209,7 @@ func initWithTaskDef(ctx context.Context, cfg config) error {
 		return err
 	}
 
-	buf, err := def.Contents(definitions.TaskDefFormat(cfg.defFormat))
+	buf, err := def.Marshal(definitions.TaskDefFormat(cfg.defFormat))
 	if err != nil {
 		return err
 	}

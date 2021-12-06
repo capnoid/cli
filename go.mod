@@ -45,7 +45,10 @@ require (
 	github.com/briandowns/spinner v1.16.0
 )
 
-require golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+require (
+	github.com/goccy/go-yaml v1.9.4
+	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+)
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
@@ -106,6 +109,7 @@ require (
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
 	golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 // indirect
 	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	google.golang.org/grpc v1.40.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
