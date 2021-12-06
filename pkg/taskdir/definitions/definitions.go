@@ -257,17 +257,21 @@ func (def Definition) Validate() (Definition, error) {
 	return def, nil
 }
 
-var jsonRegex = regexp.MustCompile(`{{ *JSON *}}`)
-
 // Upgrades this task definition for JST interpolation.
 // Assumes only usage of expressions is {{JSON}}.
 func (def *Definition) UpgradeJST() {
-	args := []string{}
-	for _, arg := range def.Arguments {
+	def.Arguments = upgradeArguments(def.Arguments)
+}
+
+var jsonRegex = regexp.MustCompile(`{{ *JSON *}}`)
+
+func upgradeArguments(args []string) []string {
+	upgraded := make([]string, len(args))
+	for i, arg := range args {
 		jstArg := jsonRegex.ReplaceAllString(arg, "{{JSON.stringify(params)}}")
-		args = append(args, jstArg)
+		upgraded[i] = jstArg
 	}
-	def.Arguments = args
+	return upgraded
 }
 
 func UnmarshalDefinition(buf []byte, defPath string) (Definition, error) {

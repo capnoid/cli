@@ -9,6 +9,7 @@ import (
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
 	"github.com/airplanedev/cli/pkg/logger"
+	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/cli/pkg/version"
 	"github.com/airplanedev/lib/pkg/build"
@@ -102,8 +103,11 @@ func run(ctx context.Context, cfg config) error {
 		return errors.New("Cannot specify both --yes and --no")
 	}
 
-	ext := filepath.Ext(cfg.paths[0])
+	if cfg.dev && definitions.IsTaskDef(cfg.paths[0]) {
+		return deployFromTaskDefn(ctx, cfg)
+	}
 
+	ext := filepath.Ext(cfg.paths[0])
 	if ext == ".yml" || ext == ".yaml" {
 		return deployFromYaml(ctx, cfg)
 	}

@@ -1,8 +1,11 @@
 package definitions
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
+	"os"
+	"path"
 
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/lib/pkg/build"
@@ -151,6 +154,10 @@ type PermissionDefinition_0_3 struct {
 	Admins     []string `json:"admins,omitempty"`
 }
 
+func (d PermissionDefinition_0_3) isEmpty() bool {
+	return len(d.Viewers) == 0 && len(d.Requesters) == 0 && len(d.Executers) == 0 && len(d.Admins) == 0
+}
+
 //go:embed schema_0_3.json
 var schemaStr string
 
@@ -251,4 +258,275 @@ func (d *Definition_0_3) Unmarshal(format TaskDefFormat, buf []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (d Definition_0_3) Kind() (build.TaskKind, error) {
+	if d.Deno != nil {
+		return build.TaskKindDeno, nil
+	} else if d.Dockerfile != nil {
+		return build.TaskKindDockerfile, nil
+	} else if d.Go != nil {
+		return build.TaskKindGo, nil
+	} else if d.Image != nil {
+		return build.TaskKindImage, nil
+	} else if d.Node != nil {
+		return build.TaskKindNode, nil
+	} else if d.Python != nil {
+		return build.TaskKindPython, nil
+	} else if d.Shell != nil {
+		return build.TaskKindShell, nil
+	} else if d.SQL != nil {
+		return build.TaskKindSQL, nil
+	} else if d.REST != nil {
+		return build.TaskKindREST, nil
+	} else {
+		return "", errors.New("incomplete task definition")
+	}
+}
+
+func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Client, image *string) (api.UpdateTaskRequest, error) {
+	req := api.UpdateTaskRequest{
+		Slug:        d.Slug,
+		Name:        d.Name,
+		Description: d.Description,
+		Timeout:     d.Timeout,
+	}
+
+	if image != nil {
+		req.Image = image
+	}
+
+	// Convert parameters.
+	req.Parameters = make([]api.Parameter, len(d.Parameters))
+	for i, pd := range d.Parameters {
+		param := api.Parameter{
+			Name:    pd.Name,
+			Slug:    pd.Slug,
+			Desc:    pd.Description,
+			Default: pd.Default,
+		}
+
+		switch pd.Type {
+		case "shorttext":
+			param.Type = "string"
+		case "longtext":
+			param.Type = "string"
+			param.Component = api.ComponentTextarea
+		case "sql":
+			param.Type = "string"
+			param.Component = api.ComponentEditorSQL
+		case "boolean", "upload", "integer", "float", "date", "datetime", "configvar":
+			param.Type = api.Type(pd.Type)
+		default:
+			return api.UpdateTaskRequest{}, errors.Errorf("unknown parameter type: %s", pd.Type)
+		}
+
+		if !pd.Required {
+			param.Constraints.Optional = true
+		}
+
+		if len(pd.Options) > 0 {
+			param.Constraints.Options = make([]api.ConstraintOption, len(pd.Options))
+			for j, od := range pd.Options {
+				param.Constraints.Options[j].Label = od.Label
+				param.Constraints.Options[j].Value = od.Value
+			}
+		}
+
+		req.Parameters[i] = param
+	}
+
+	if d.Permissions != nil && !d.Permissions.isEmpty() {
+		req.RequireExplicitPermissions = true
+		// TODO: convert permissions.
+	}
+
+	if d.Constraints != nil {
+		req.Constraints = *d.Constraints
+	}
+
+	resourcesByName := map[string]api.Resource{}
+	if d.SQL != nil || d.REST != nil {
+		// Remap resources from ref -> name to ref -> id.
+		resp, err := client.ListResources(ctx)
+		if err != nil {
+			return api.UpdateTaskRequest{}, errors.Wrap(err, "fetching resources")
+		}
+		for _, resource := range resp.Resources {
+			resourcesByName[resource.Name] = resource
+		}
+	}
+
+	// Convert kind-specific things.
+	if kind, err := d.Kind(); err != nil {
+		return api.UpdateTaskRequest{}, err
+	} else {
+		req.Kind = kind
+	}
+	switch req.Kind {
+	case build.TaskKindDeno:
+		req.KindOptions = build.KindOptions{
+			"entrypoint": d.Deno.Entrypoint,
+		}
+		req.Arguments = d.Deno.Arguments
+		req.Env = d.Deno.Env
+	case build.TaskKindDockerfile:
+		req.KindOptions = build.KindOptions{
+			"dockerfile": d.Dockerfile.Dockerfile,
+		}
+		req.Env = d.Dockerfile.Env
+	case build.TaskKindGo:
+		req.KindOptions = build.KindOptions{
+			"entrypoint": d.Go.Entrypoint,
+		}
+		req.Arguments = d.Go.Arguments
+		req.Env = d.Go.Env
+	case build.TaskKindImage:
+		req.KindOptions = build.KindOptions{}
+		req.Image = &d.Image.Image
+		req.Command = d.Image.Command
+		req.Env = d.Image.Env
+	case build.TaskKindNode:
+		req.KindOptions = build.KindOptions{
+			"entrypoint":  d.Node.Entrypoint,
+			"nodeVersion": d.Node.NodeVersion,
+		}
+		req.Arguments = d.Node.Arguments
+		req.Env = d.Node.Env
+	case build.TaskKindPython:
+		req.KindOptions = build.KindOptions{
+			"entrypoint": d.Python.Entrypoint,
+		}
+		req.Arguments = d.Python.Arguments
+	case build.TaskKindShell:
+		req.KindOptions = build.KindOptions{
+			"entrypoint": d.Shell.Entrypoint,
+		}
+		req.Env = d.Shell.Env
+		req.Arguments = d.Shell.Arguments
+	case build.TaskKindSQL:
+		queryBytes, err := os.ReadFile(d.SQL.Entrypoint)
+		if err != nil {
+			return api.UpdateTaskRequest{}, errors.Wrapf(err, "reading SQL entrypoint %s", d.SQL.Entrypoint)
+		}
+		req.KindOptions = build.KindOptions{
+			"query":     string(queryBytes),
+			"queryArgs": d.SQL.Parameters,
+		}
+		if res, ok := resourcesByName[d.SQL.Resource]; ok {
+			req.Resources = map[string]string{
+				"db": res.ID,
+			}
+		} else {
+			return api.UpdateTaskRequest{}, errors.Errorf("unknown resource: %s", d.SQL.Resource)
+		}
+	case build.TaskKindREST:
+		req.KindOptions = build.KindOptions{
+			"method":    d.REST.Method,
+			"path":      d.REST.Path,
+			"urlParams": d.REST.URLParams,
+			"headers":   d.REST.Headers,
+			"bodyType":  d.REST.BodyType,
+			"body":      d.REST.Body,
+			"formData":  d.REST.FormData,
+		}
+		if res, ok := resourcesByName[d.REST.Resource]; ok {
+			req.Resources = map[string]string{
+				"rest": res.ID,
+			}
+		} else {
+			return api.UpdateTaskRequest{}, errors.Errorf("unknown resource: %s", d.REST.Resource)
+		}
+	default:
+		return api.UpdateTaskRequest{}, errors.Errorf("unhandled kind: %s", req.Kind)
+	}
+
+	return req, nil
+}
+
+func (d Definition_0_3) Root(dir string) (string, error) {
+	kind, err := d.Kind()
+	if err != nil {
+		return "", err
+	}
+
+	var root string
+
+	switch kind {
+	case build.TaskKindDeno:
+		root = d.Deno.Root
+	case build.TaskKindDockerfile:
+		root = d.Dockerfile.Root
+	case build.TaskKindGo:
+		root = d.Go.Root
+	case build.TaskKindImage:
+		root = d.Image.Root
+	case build.TaskKindNode:
+		root = d.Node.Root
+	case build.TaskKindPython:
+		root = d.Python.Root
+	case build.TaskKindShell:
+		root = d.Shell.Root
+	case build.TaskKindSQL, build.TaskKindREST:
+		return "", nil
+	default:
+		return "", errors.Errorf("unhandled kind: %s", kind)
+	}
+
+	return path.Join(dir, root), nil
+}
+
+var ErrNoEntrypoint = errors.New("No entrypoint")
+
+func (d Definition_0_3) Entrypoint() (string, error) {
+	kind, err := d.Kind()
+	if err != nil {
+		return "", err
+	}
+
+	switch kind {
+	case build.TaskKindDeno:
+		return d.Deno.Entrypoint, nil
+	case build.TaskKindGo:
+		return d.Go.Entrypoint, nil
+	case build.TaskKindNode:
+		return d.Node.Entrypoint, nil
+	case build.TaskKindPython:
+		return d.Python.Entrypoint, nil
+	case build.TaskKindShell:
+		return d.Shell.Entrypoint, nil
+	case build.TaskKindSQL:
+		return d.SQL.Entrypoint, nil
+	case build.TaskKindDockerfile, build.TaskKindImage, build.TaskKindREST:
+		return "", ErrNoEntrypoint
+	default:
+		return "", errors.Errorf("unhandled kind: %s", kind)
+	}
+}
+
+func (d *Definition_0_3) UpgradeJST() error {
+	kind, err := d.Kind()
+	if err != nil {
+		return err
+	}
+
+	switch kind {
+	case build.TaskKindDeno:
+		d.Deno.Arguments = upgradeArguments(d.Deno.Arguments)
+		return nil
+	case build.TaskKindGo:
+		d.Go.Arguments = upgradeArguments(d.Go.Arguments)
+		return nil
+	case build.TaskKindNode:
+		d.Node.Arguments = upgradeArguments(d.Node.Arguments)
+		return nil
+	case build.TaskKindPython:
+		d.Python.Arguments = upgradeArguments(d.Python.Arguments)
+		return nil
+	case build.TaskKindDockerfile, build.TaskKindImage, build.TaskKindShell,
+		build.TaskKindSQL, build.TaskKindREST:
+		return nil
+	default:
+		return errors.Errorf("unhandled kind: %s", kind)
+	}
 }

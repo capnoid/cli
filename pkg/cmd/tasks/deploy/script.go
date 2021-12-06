@@ -272,6 +272,7 @@ type taskConfig struct {
 	taskFilePath     string
 	task             api.Task
 	def              definitions.Definition
+	def_0_3          *definitions.Definition_0_3
 	kind             libBuild.TaskKind
 	kindOptions      libBuild.KindOptions
 }

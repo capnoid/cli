@@ -14,6 +14,7 @@ type Request struct {
 	Client  *api.Client
 	Root    string
 	Def     definitions.Definition
+	Def_0_3 *definitions.Definition_0_3
 	TaskID  string
 	TaskEnv api.TaskEnv
 	Shim    bool
