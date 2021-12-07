@@ -19,16 +19,16 @@ type release struct {
 }
 
 // CheckLatest queries the GitHub API for newer releases and prints a warning if the CLI is outdated.
-func CheckLatest(ctx context.Context) error {
+func CheckLatest(ctx context.Context) {
 	latest, err := getLatest(ctx)
 	if err != nil {
 		analytics.ReportError(err)
 		logger.Debug("An error ocurred checking for the latest version: %s", err)
-		return nil
+		return
 	}
 	if latest == "" || version.Get() == "<unknown>" {
 		// No version found or CLI version unknown - pass silently.
-		return nil
+		return
 	}
 	// Assumes not matching latest means you are behind:
 	if latest != "v"+version.Get() {
@@ -38,7 +38,7 @@ func CheckLatest(ctx context.Context) error {
 			"https://docs.airplane.dev/platform/airplane-cli#upgrading-the-cli",
 		)
 	}
-	return nil
+	return
 }
 
 func getLatest(ctx context.Context) (string, error) {

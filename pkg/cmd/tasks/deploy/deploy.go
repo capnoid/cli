@@ -93,9 +93,7 @@ type taskDeployedProps struct {
 }
 
 func run(ctx context.Context, cfg config) error {
-	if err := latest.CheckLatest(ctx); err != nil {
-		return err
-	}
+	latest.CheckLatest(ctx)
 
 	// Check for mutually exclusive flags.
 	if cfg.assumeYes && cfg.assumeNo {

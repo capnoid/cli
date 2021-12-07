@@ -30,10 +30,6 @@ func Version() string {
 
 func run(ctx context.Context) error {
 	logger.Log(Version())
-
-	if err := latest.CheckLatest(ctx); err != nil {
-		return err
-	}
-
+	latest.CheckLatest(ctx)
 	return nil
 }
