@@ -1,9 +1,10 @@
 package analytics
 
 import (
+	"errors"
 	"time"
 
-	"github.com/airplanedev/cli/pkg/analytics/reporterr"
+	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/conf"
 	"github.com/airplanedev/cli/pkg/logger"
@@ -131,5 +132,16 @@ func enqueue(msg analytics.Message) {
 
 // ReportError sends an error to Sentry, unless filtered
 func ReportError(err error) {
-	reporterr.ReportError(err)
+	if ignoreError(err) {
+		return
+	}
+	sentryID := sentry.CaptureException(err)
+	if sentryID != nil {
+		logger.Debug("Sentry event ID: %s", *sentryID)
+	}
+}
+
+func ignoreError(err error) bool {
+	// For now, all this does is handle survey's interrupt error.
+	return errors.Is(err, terminal.InterruptErr)
 }

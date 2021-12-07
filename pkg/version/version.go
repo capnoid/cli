@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/airplanedev/cli/pkg/analytics/reporterror"
 	"github.com/airplanedev/cli/pkg/logger"
-	"github.com/pkg/errors"
 )
 
 // Set by Go Releaser.
@@ -36,7 +34,6 @@ type release struct {
 func CheckLatest(ctx context.Context) error {
 	latest, err := getLatest(ctx)
 	if err != nil {
-		reporterror.ReportError(errors.Wrap(err, "getting latest version from GitHub"))
 		logger.Debug("An error ocurred checking for the latest version: %s", err)
 		return nil
 	}
