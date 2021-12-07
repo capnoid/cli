@@ -10,7 +10,7 @@ import (
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/utils"
-	"github.com/airplanedev/cli/pkg/version"
+	"github.com/airplanedev/cli/pkg/version/latest"
 	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -93,7 +93,7 @@ type taskDeployedProps struct {
 }
 
 func run(ctx context.Context, cfg config) error {
-	if err := version.CheckLatest(ctx); err != nil {
+	if err := latest.CheckLatest(ctx); err != nil {
 		return err
 	}
 

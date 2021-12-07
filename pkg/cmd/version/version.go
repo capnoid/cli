@@ -7,6 +7,7 @@ import (
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/version"
+	"github.com/airplanedev/cli/pkg/version/latest"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +31,7 @@ func Version() string {
 func run(ctx context.Context) error {
 	logger.Log(Version())
 
-	if err := version.CheckLatest(ctx); err != nil {
+	if err := latest.CheckLatest(ctx); err != nil {
 		return err
 	}
 
