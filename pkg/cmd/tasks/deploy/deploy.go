@@ -106,5 +106,5 @@ func run(ctx context.Context, cfg config) error {
 		return deployFromYaml(ctx, cfg)
 	}
 
-	return NewDeployer().deployFromScript(ctx, cfg)
+	return NewDeployer().deploy(ctx, cfg)
 }
