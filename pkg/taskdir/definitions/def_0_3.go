@@ -296,6 +296,26 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 		req.Image = image
 	}
 
+	if err := d.convertParameters(ctx, client, &req); err != nil {
+		return api.UpdateTaskRequest{}, err
+	}
+
+	if err := d.convertPermissions(ctx, client, &req); err != nil {
+		return api.UpdateTaskRequest{}, err
+	}
+
+	if d.Constraints != nil {
+		req.Constraints = *d.Constraints
+	}
+
+	if err := d.convertKindSpecifics(ctx, client, &req); err != nil {
+		return api.UpdateTaskRequest{}, err
+	}
+
+	return req, nil
+}
+
+func (d Definition_0_3) convertParameters(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
 	// Convert parameters.
 	req.Parameters = make([]api.Parameter, len(d.Parameters))
 	for i, pd := range d.Parameters {
@@ -318,7 +338,7 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 		case "boolean", "upload", "integer", "float", "date", "datetime", "configvar":
 			param.Type = api.Type(pd.Type)
 		default:
-			return api.UpdateTaskRequest{}, errors.Errorf("unknown parameter type: %s", pd.Type)
+			return errors.Errorf("unknown parameter type: %s", pd.Type)
 		}
 
 		if !pd.Required {
@@ -335,22 +355,24 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 
 		req.Parameters[i] = param
 	}
+	return nil
+}
 
+func (d Definition_0_3) convertPermissions(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
 	if d.Permissions != nil && !d.Permissions.isEmpty() {
 		req.RequireExplicitPermissions = true
 		// TODO: convert permissions.
 	}
+	return nil
+}
 
-	if d.Constraints != nil {
-		req.Constraints = *d.Constraints
-	}
-
+func (d Definition_0_3) convertKindSpecifics(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
 	resourcesByName := map[string]api.Resource{}
 	if d.SQL != nil || d.REST != nil {
 		// Remap resources from ref -> name to ref -> id.
 		resp, err := client.ListResources(ctx)
 		if err != nil {
-			return api.UpdateTaskRequest{}, errors.Wrap(err, "fetching resources")
+			return errors.Wrap(err, "fetching resources")
 		}
 		for _, resource := range resp.Resources {
 			resourcesByName[resource.Name] = resource
@@ -359,7 +381,7 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 
 	// Convert kind-specific things.
 	if kind, err := d.Kind(); err != nil {
-		return api.UpdateTaskRequest{}, err
+		return err
 	} else {
 		req.Kind = kind
 	}
@@ -407,7 +429,7 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 	case build.TaskKindSQL:
 		queryBytes, err := os.ReadFile(d.SQL.Entrypoint)
 		if err != nil {
-			return api.UpdateTaskRequest{}, errors.Wrapf(err, "reading SQL entrypoint %s", d.SQL.Entrypoint)
+			return errors.Wrapf(err, "reading SQL entrypoint %s", d.SQL.Entrypoint)
 		}
 		req.KindOptions = build.KindOptions{
 			"query":     string(queryBytes),
@@ -418,7 +440,7 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 				"db": res.ID,
 			}
 		} else {
-			return api.UpdateTaskRequest{}, errors.Errorf("unknown resource: %s", d.SQL.Resource)
+			return errors.Errorf("unknown resource: %s", d.SQL.Resource)
 		}
 	case build.TaskKindREST:
 		req.KindOptions = build.KindOptions{
@@ -435,13 +457,12 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Clien
 				"rest": res.ID,
 			}
 		} else {
-			return api.UpdateTaskRequest{}, errors.Errorf("unknown resource: %s", d.REST.Resource)
+			return errors.Errorf("unknown resource: %s", d.REST.Resource)
 		}
 	default:
-		return api.UpdateTaskRequest{}, errors.Errorf("unhandled kind: %s", req.Kind)
+		return errors.Errorf("unhandled kind: %s", req.Kind)
 	}
-
-	return req, nil
+	return nil
 }
 
 func (d Definition_0_3) Root(dir string) (string, error) {
