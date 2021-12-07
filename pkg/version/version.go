@@ -25,14 +25,17 @@ func Date() string {
 const releaseURL = "https://api.github.com/repos/airplanedev/cli/releases?per_page=1"
 
 type release struct {
-	Name string `json:"name"`
+	Name       string `json:"name"`
+	Draft      bool   `json:"draft"`
+	Prerelease bool   `json:"prerelease"`
 }
 
 // CheckLatest queries the GitHub API for newer releases and prints a warning if the CLI is outdated.
 func CheckLatest(ctx context.Context) error {
 	latest, err := getLatest(ctx)
 	if err != nil {
-		return err
+		logger.Debug("An error ocurred checking for the latest version: %s", err)
+		return nil
 	}
 	if latest == "" || version == "<unknown>" {
 		// No version found or CLI version unknown - pass silently.
@@ -68,5 +71,11 @@ func getLatest(ctx context.Context) (string, error) {
 	if len(releases) == 0 {
 		return "", nil
 	}
-	return releases[0].Name, nil
+	for _, release := range releases {
+		if release.Draft || release.Prerelease {
+			continue
+		}
+		return release.Name, nil
+	}
+	return "", nil
 }
