@@ -13,32 +13,18 @@ import (
 func (d *Deployer) local(ctx context.Context, req Request) (*build.Response, error) {
 	registry, err := d.getRegistryToken(ctx, req.Client)
 
-	var buildEnv map[string]string
-	var kind build.TaskKind
-	var options build.KindOptions
-	if req.Def_0_3 != nil {
-		utr, err := req.Def_0_3.UpdateTaskRequest(ctx, req.Client, nil)
-		if err != nil {
-			return nil, err
-		}
+	env, err := req.Def.GetEnv()
+	if err != nil {
+		return nil, err
+	}
+	buildEnv, err := getBuildEnv(ctx, req.Client, env)
+	if err != nil {
+		return nil, err
+	}
 
-		buildEnv, err = getBuildEnv(ctx, req.Client, utr.Env)
-		if err != nil {
-			return nil, err
-		}
-
-		kind = utr.Kind
-		options = utr.KindOptions
-	} else {
-		buildEnv, err = getBuildEnv(ctx, req.Client, req.Def.Env)
-		if err != nil {
-			return nil, err
-		}
-
-		kind, options, err = req.Def.GetKindAndOptions()
-		if err != nil {
-			return nil, err
-		}
+	kind, options, err := req.Def.GetKindAndOptions()
+	if err != nil {
+		return nil, err
 	}
 
 	if req.Shim {

@@ -44,14 +44,14 @@ func deployFromTaskDefn(ctx context.Context, cfg config) error {
 	}
 
 	if err := deploySingleTaskFromTaskDefn(ctx, cfg, tc); err != nil {
-		logger.Log("\n" + logger.Bold(tc.def_0_3.Slug))
+		logger.Log("\n" + logger.Bold(tc.def.GetSlug()))
 		logger.Log("Status: " + logger.Bold(logger.Red("failed")))
 		logger.Error(err.Error())
 		return err
 	}
-	logger.Log("\n" + logger.Bold(tc.def_0_3.Slug))
+	logger.Log("\n" + logger.Bold(tc.def.GetSlug()))
 	logger.Log("Status: %s", logger.Bold(logger.Green("succeeded")))
-	logger.Log("Execute the task: %s", cfg.client.TaskURL(tc.def_0_3.Slug))
+	logger.Log("Execute the task: %s", cfg.client.TaskURL(tc.def.GetSlug()))
 	return nil
 }
 
@@ -76,7 +76,7 @@ func deploySingleTaskFromTaskDefn(ctx context.Context, cfg config, tc taskConfig
 
 	task := tc.task
 
-	props.taskSlug = tc.def_0_3.Slug
+	props.taskSlug = tc.def.GetSlug()
 	props.taskID = task.ID
 	props.taskName = task.Name
 
@@ -95,7 +95,7 @@ func deploySingleTaskFromTaskDefn(ctx context.Context, cfg config, tc taskConfig
 			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
 More information: https://apn.sh/jst-upgrade`)
 			interpolationMode = "jst"
-			if err := tc.def_0_3.UpgradeJST(); err != nil {
+			if err := tc.def.UpgradeJST(); err != nil {
 				return err
 			}
 		} else {
@@ -119,7 +119,7 @@ More information: https://apn.sh/jst-upgrade`)
 
 	var image *string
 	var buildID string
-	kind, err := tc.def_0_3.Kind()
+	kind, _, err := tc.def.GetKindAndOptions()
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ More information: https://apn.sh/jst-upgrade`)
 			Client:  client,
 			TaskID:  task.ID,
 			Root:    tc.taskRoot,
-			Def_0_3: tc.def_0_3,
+			Def:     tc.def,
 			Shim:    true,
 			GitMeta: gitMeta,
 		})
@@ -146,7 +146,7 @@ More information: https://apn.sh/jst-upgrade`)
 		image = &resp.ImageURL
 	}
 
-	updateTaskRequest, err := tc.def_0_3.UpdateTaskRequest(ctx, client, image)
+	updateTaskRequest, err := tc.def.UpdateTaskRequest(ctx, client, image)
 	if err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ More information: https://apn.sh/jst-upgrade`)
 	updateTaskRequest.InterpolationMode = interpolationMode
 
 	if _, err = client.UpdateTask(ctx, updateTaskRequest); err != nil {
-		return errors.Wrapf(err, "updating task %s", tc.def_0_3.Slug)
+		return errors.Wrapf(err, "updating task %s", tc.def.GetSlug())
 	}
 	return nil
 }
@@ -183,7 +183,7 @@ func getTaskConfigFromDefn(ctx context.Context, client api.Client, def definitio
 		taskRoot:     root,
 		taskFilePath: taskFilePath,
 		task:         task,
-		def_0_3:      &def,
+		def:          &def,
 		kind:         utr.Kind,
 		kindOptions:  utr.KindOptions,
 	}, nil

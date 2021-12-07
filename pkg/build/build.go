@@ -13,8 +13,7 @@ type Request struct {
 	Local   bool
 	Client  *api.Client
 	Root    string
-	Def     definitions.Definition
-	Def_0_3 *definitions.Definition_0_3
+	Def     definitions.DefinitionInterface
 	TaskID  string
 	TaskEnv api.TaskEnv
 	Shim    bool

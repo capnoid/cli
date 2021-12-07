@@ -147,7 +147,7 @@ More information: https://apn.sh/jst-upgrade`)
 			Local:  cfg.local,
 			Client: client,
 			Root:   dir.DefinitionRootPath(),
-			Def:    def,
+			Def:    &def,
 			TaskID: task.ID,
 		})
 		props.buildLocal = cfg.local
