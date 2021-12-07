@@ -34,7 +34,7 @@ func deployFromYaml(ctx context.Context, cfg config) (rErr error) {
 		})
 	}()
 
-	dir, err := taskdir.Open(cfg.paths[0])
+	dir, err := taskdir.Open(cfg.paths[0], false)
 	if err != nil {
 		return err
 	}

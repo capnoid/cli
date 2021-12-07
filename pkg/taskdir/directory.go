@@ -34,7 +34,7 @@ func New(file string) (TaskDirectory, error) {
 // Open creates a TaskDirectory struct from a file argument
 // Supports file in the form of github.com/path/to/repo/example and will download from GitHub
 // Supports file in the form of local_file.yml and will read it to determine the full details
-func Open(file string, use_0_3 ...bool) (TaskDirectory, error) {
+func Open(file string, use_0_3 bool) (TaskDirectory, error) {
 	if strings.HasPrefix(file, "http://") {
 		return TaskDirectory{}, errors.New("http:// paths are not supported, use https:// instead")
 	}
@@ -53,7 +53,7 @@ func Open(file string, use_0_3 ...bool) (TaskDirectory, error) {
 		}
 	}
 
-	if len(use_0_3) == 0 || !use_0_3[0] {
+	if !use_0_3 {
 		def, err := td.ReadDefinition()
 		if err != nil {
 			return TaskDirectory{}, err
