@@ -108,10 +108,13 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 // However, Python on Windows (whether through Python or Anaconda) does not seem to install python3.exe.
 func pythonBin() string {
 	for _, bin := range []string{"python3", "python"} {
-		_, err := exec.LookPath(bin)
+		logger.Debug("Looking for binary %s", bin)
+		path, err := exec.LookPath(bin)
 		if err == nil {
+			logger.Debug("Found binary %s at %s", bin, path)
 			return bin
 		}
+		logger.Debug("Could not find binary %s: %s", bin, err)
 	}
 	return ""
 }
