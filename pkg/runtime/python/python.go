@@ -96,7 +96,7 @@ func (r Runtime) PrepareRun(ctx context.Context, opts runtime.PrepareRunOptions)
 	}
 
 	bin := pythonBin()
-	if bin != "" {
+	if bin == "" {
 		return nil, nil, errors.New("could not find python")
 	}
 	return []string{pythonBin(), filepath.Join(tmpdir, "shim.py"), string(pv)}, closer, nil
