@@ -17,10 +17,11 @@ import (
 )
 
 type config struct {
-	root   *cli.Config
-	client *api.Client
-	paths  []string
-	local  bool
+	root         *cli.Config
+	client       *api.Client
+	paths        []string
+	local        bool
+	changedFiles utils.NewlineFileValue
 
 	upgradeInterpolation bool
 
@@ -62,7 +63,7 @@ func New(c *cli.Config) *cobra.Command {
 
 	cmd.Flags().BoolVarP(&cfg.local, "local", "L", false, "use a local Docker daemon (instead of an Airplane-hosted builder)")
 	cmd.Flags().BoolVar(&cfg.upgradeInterpolation, "jst", false, "Upgrade interpolation to JST")
-
+	cmd.Flags().Var(&cfg.changedFiles, "changed-files", "A file with a list of file paths that were changed, one path per line. Only tasks with changed files will be deployed")
 	// Remove dev flag + unhide these flags before release!
 	cmd.Flags().BoolVar(&cfg.dev, "dev", false, "Dev mode: warning, not guaranteed to work and subject to change.")
 	cmd.Flags().BoolVarP(&cfg.assumeYes, "yes", "y", false, "True to specify automatic yes to prompts.")

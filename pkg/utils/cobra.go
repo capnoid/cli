@@ -1,9 +1,13 @@
 package utils
 
 import (
-	"errors"
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -86,4 +90,34 @@ func (tv *TimeValue) String() string {
 	}
 
 	return t.Format(time.RFC3339)
+}
+
+// NewlineFileValue is a pflag.Value that can be used to parse a file with newline
+// separated values.
+type NewlineFileValue []string
+
+var _ pflag.Value = &NewlineFileValue{}
+
+func (tv *NewlineFileValue) Set(s string) error {
+	file, err := os.Open(s)
+	if err != nil {
+		return errors.Wrapf(err, "unable to read file %s", s)
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, strings.TrimSpace(scanner.Text()))
+	}
+	*tv = lines
+	return nil
+}
+
+func (tv *NewlineFileValue) Type() string {
+	return "file"
+}
+
+func (tv *NewlineFileValue) String() string {
+	return fmt.Sprintf("%v", *tv)
 }
