@@ -18,9 +18,9 @@ import (
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/params"
 	"github.com/airplanedev/cli/pkg/print"
-	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/lib/pkg/outputs"
+	"github.com/airplanedev/lib/pkg/runtime"
 	"github.com/airplanedev/lib/pkg/utils/bufiox"
 	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/airplanedev/ojson"
@@ -100,7 +100,7 @@ func run(ctx context.Context, cfg config) error {
 		return errors.Wrapf(err, "absolute path of %s", cfg.file)
 	}
 
-	cmds, closer, err := r.PrepareRun(ctx, runtime.PrepareRunOptions{
+	cmds, closer, err := r.PrepareRun(ctx, &logger.StdErrLogger{}, runtime.PrepareRunOptions{
 		Path:        path,
 		ParamValues: paramValues,
 		KindOptions: task.KindOptions,

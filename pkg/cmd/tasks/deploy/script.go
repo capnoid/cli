@@ -16,10 +16,10 @@ import (
 	"github.com/airplanedev/cli/pkg/build"
 	"github.com/airplanedev/cli/pkg/conf"
 	"github.com/airplanedev/cli/pkg/logger"
-	"github.com/airplanedev/cli/pkg/runtime"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
 	libBuild "github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/runtime"
 	"github.com/go-git/go-git/v5"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -56,27 +56,45 @@ func (d *scriptDeployer) deployFromScript(ctx context.Context, cfg config) error
 	}
 	loader.Stop()
 
-	if len(scriptsToDeploy) == 0 {
-		logger.Log("No tasks to deploy")
-		return nil
-	}
-
-	noun := "task"
-	if len(scriptsToDeploy) > 1 {
-		noun = fmt.Sprintf("%ss", noun)
-	}
-	logger.Log("Deploying %v %v:\n", len(scriptsToDeploy), noun)
-	g := new(errgroup.Group)
-
 	var taskConfigs []taskConfig
-	// Print out a summary before deploying.
 	for _, script := range scriptsToDeploy {
 		tc, err := getTaskConfigFromScript(ctx, *cfg.client, script)
 		if err != nil {
 			return err
 		}
 		taskConfigs = append(taskConfigs, tc)
+	}
 
+	if len(cfg.changedFiles) > 0 {
+		// Filter out any tasks that don't have changed files.
+		var filteredTaskConfigs []taskConfig
+		for _, tc := range taskConfigs {
+			contains, err := containsFile(tc.taskRoot, cfg.changedFiles)
+			if err != nil {
+				return err
+			}
+			if contains {
+				filteredTaskConfigs = append(filteredTaskConfigs, tc)
+			}
+		}
+		if len(taskConfigs) != len(filteredTaskConfigs) {
+			logger.Log("Changed files specified. Filtered %d task(s) to %d affected task(s)", len(taskConfigs), len(filteredTaskConfigs))
+		}
+		taskConfigs = filteredTaskConfigs
+	}
+
+	if len(taskConfigs) == 0 {
+		logger.Log("No tasks to deploy")
+		return nil
+	}
+
+	// Print out a summary before deploying.
+	noun := "task"
+	if len(taskConfigs) > 1 {
+		noun = fmt.Sprintf("%ss", noun)
+	}
+	logger.Log("Deploying %v %v:\n", len(taskConfigs), noun)
+	for _, tc := range taskConfigs {
 		logger.Log(logger.Bold(tc.task.Slug))
 		logger.Log("Type: %s", tc.task.Kind)
 		logger.Log("Root directory: %s", relpath(tc.taskRoot))
@@ -87,6 +105,7 @@ func (d *scriptDeployer) deployFromScript(ctx context.Context, cfg config) error
 		logger.Log("")
 	}
 
+	g := new(errgroup.Group)
 	// Concurrently deploy the tasks.
 	for _, tc := range taskConfigs {
 		tc := tc
@@ -322,6 +341,25 @@ func getTaskConfigFromScript(ctx context.Context, client api.Client, script scri
 		kindOptions:      kindOptions,
 		task:             task,
 	}, nil
+}
+
+// containsFile returns true if the directory contains at least one of the files.
+func containsFile(dir string, filePaths []string) (bool, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false, errors.Wrapf(err, "calculating absolute path of directory %s", dir)
+	}
+	for _, cf := range filePaths {
+		absCF, err := filepath.Abs(cf)
+		if err != nil {
+			return false, errors.Wrapf(err, "calculating absolute path of file %s", cf)
+		}
+		changedFileDir := filepath.Dir(absCF)
+		if strings.HasPrefix(changedFileDir, absDir) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func getGitMetadata(taskFilePath string) (api.BuildGitMeta, error) {

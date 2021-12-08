@@ -12,6 +12,9 @@ export AIRPLANE_CLI_TAG=v0.0.1-alpha.2 && \
   git push origin ${AIRPLANE_CLI_TAG}
 ```
 
+Note that tags ending in e.g. `-alpha.2` and `-rc1` are automatically marked as prerelease
+in GitHub: https://goreleaser.com/customization/release/
+
 You can test this build process locally by running:
 
 ```sh

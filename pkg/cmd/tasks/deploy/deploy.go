@@ -11,17 +11,18 @@ import (
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils"
-	"github.com/airplanedev/cli/pkg/version"
+	"github.com/airplanedev/cli/pkg/version/latest"
 	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 type config struct {
-	root   *cli.Config
-	client *api.Client
-	paths  []string
-	local  bool
+	root         *cli.Config
+	client       *api.Client
+	paths        []string
+	local        bool
+	changedFiles utils.NewlineFileValue
 
 	upgradeInterpolation bool
 
@@ -63,7 +64,7 @@ func New(c *cli.Config) *cobra.Command {
 
 	cmd.Flags().BoolVarP(&cfg.local, "local", "L", false, "use a local Docker daemon (instead of an Airplane-hosted builder)")
 	cmd.Flags().BoolVar(&cfg.upgradeInterpolation, "jst", false, "Upgrade interpolation to JST")
-
+	cmd.Flags().Var(&cfg.changedFiles, "changed-files", "A file with a list of file paths that were changed, one path per line. Only tasks with changed files will be deployed")
 	// Remove dev flag + unhide these flags before release!
 	cmd.Flags().BoolVar(&cfg.dev, "dev", false, "Dev mode: warning, not guaranteed to work and subject to change.")
 	cmd.Flags().BoolVarP(&cfg.assumeYes, "yes", "y", false, "True to specify automatic yes to prompts.")
@@ -94,9 +95,7 @@ type taskDeployedProps struct {
 }
 
 func run(ctx context.Context, cfg config) error {
-	if err := version.CheckLatest(ctx); err != nil {
-		return err
-	}
+	latest.CheckLatest(ctx)
 
 	// Check for mutually exclusive flags.
 	if cfg.assumeYes && cfg.assumeNo {

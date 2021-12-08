@@ -19,14 +19,14 @@ import (
 	"github.com/airplanedev/cli/pkg/cli"
 	"github.com/airplanedev/cli/pkg/cmd/auth/login"
 	"github.com/airplanedev/cli/pkg/logger"
-	"github.com/airplanedev/cli/pkg/runtime"
-	_ "github.com/airplanedev/cli/pkg/runtime/javascript"
-	_ "github.com/airplanedev/cli/pkg/runtime/python"
-	_ "github.com/airplanedev/cli/pkg/runtime/shell"
-	_ "github.com/airplanedev/cli/pkg/runtime/typescript"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils"
 	"github.com/airplanedev/lib/pkg/build"
+	"github.com/airplanedev/lib/pkg/runtime"
+	_ "github.com/airplanedev/lib/pkg/runtime/javascript"
+	_ "github.com/airplanedev/lib/pkg/runtime/python"
+	_ "github.com/airplanedev/lib/pkg/runtime/shell"
+	_ "github.com/airplanedev/lib/pkg/runtime/typescript"
 	"github.com/airplanedev/lib/pkg/utils/fsx"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -269,7 +269,7 @@ func initCodeOnly(ctx context.Context, cfg config) error {
 		if err != nil {
 			return err
 		}
-		code := prependComment(buf, runtime.Comment(r, task))
+		code := prependComment(buf, runtime.Comment(r, task.URL))
 		// Note: 0644 is ignored because file already exists. Uses a reasonable default just in case.
 		if err := ioutil.WriteFile(cfg.file, code, 0644); err != nil {
 			return err
@@ -483,7 +483,7 @@ func cwdIsHome() (bool, error) {
 }
 
 func createEntrypoint(r runtime.Interface, entrypoint string, task *api.Task) error {
-	code, fileMode, err := r.Generate(task)
+	code, fileMode, err := r.Generate(apiTaskToRuntimeTask(task))
 	if err != nil {
 		return err
 	}
@@ -520,4 +520,21 @@ func confirm(msg, help string, assumeYes, assumeNo bool) (bool, error) {
 		return false, err
 	}
 	return ok, nil
+}
+
+func apiTaskToRuntimeTask(task *api.Task) *runtime.Task {
+	if task == nil {
+		return nil
+	}
+	t := &runtime.Task{
+		URL: task.URL,
+	}
+	for _, p := range task.Parameters {
+		t.Parameters = append(t.Parameters, runtime.Parameter{
+			Name: p.Name,
+			Slug: p.Slug,
+			Type: runtime.Type(p.Type),
+		})
+	}
+	return t
 }
