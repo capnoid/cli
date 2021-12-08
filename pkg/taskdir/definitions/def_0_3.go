@@ -37,12 +37,51 @@ type Definition_0_3 struct {
 	Timeout int `json:"timeout,omitempty"`
 }
 
+type taskKind_0_3 interface {
+	updateTaskRequest(context.Context, *api.Client, *api.UpdateTaskRequest) error
+	upgradeJST() error
+	getKindOptions() (build.KindOptions, error)
+	getEntrypoint() (string, error)
+	getRoot() (string, error)
+	getEnv() (api.TaskEnv, error)
+}
+
+var _ taskKind_0_3 = &ImageDefinition_0_3{}
+
 type ImageDefinition_0_3 struct {
 	Image   string      `json:"image"`
 	Command []string    `json:"command"`
 	Root    string      `json:"root,omitempty"`
 	Env     api.TaskEnv `json:"env,omitempty"`
 }
+
+func (d *ImageDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	req.Image = &d.Image
+	req.Command = d.Command
+	return nil
+}
+
+func (d *ImageDefinition_0_3) upgradeJST() error {
+	return nil
+}
+
+func (d *ImageDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return nil, nil
+}
+
+func (d *ImageDefinition_0_3) getEntrypoint() (string, error) {
+	return "", ErrNoEntrypoint
+}
+
+func (d *ImageDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *ImageDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &DenoDefinition_0_3{}
 
 type DenoDefinition_0_3 struct {
 	Entrypoint string `json:"entrypoint"`
@@ -52,11 +91,69 @@ type DenoDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
+func (d *DenoDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	req.Arguments = d.Arguments
+	return nil
+}
+
+func (d *DenoDefinition_0_3) upgradeJST() error {
+	d.Arguments = upgradeArguments(d.Arguments)
+	return nil
+}
+
+func (d *DenoDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"entrypoint": d.Entrypoint,
+	}, nil
+}
+
+func (d *DenoDefinition_0_3) getEntrypoint() (string, error) {
+	return d.Entrypoint, nil
+}
+
+func (d *DenoDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *DenoDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &DockerfileDefinition_0_3{}
+
 type DockerfileDefinition_0_3 struct {
 	Dockerfile string      `json:"dockerfile"`
 	Root       string      `json:"root,omitempty"`
 	Env        api.TaskEnv `json:"env,omitempty"`
 }
+
+func (d *DockerfileDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	return nil
+}
+
+func (d *DockerfileDefinition_0_3) upgradeJST() error {
+	return nil
+}
+
+func (d *DockerfileDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"dockerfile": d.Dockerfile,
+	}, nil
+}
+
+func (d *DockerfileDefinition_0_3) getEntrypoint() (string, error) {
+	return "", ErrNoEntrypoint
+}
+
+func (d *DockerfileDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *DockerfileDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &GoDefinition_0_3{}
 
 type GoDefinition_0_3 struct {
 	Entrypoint string `json:"entrypoint"`
@@ -65,6 +162,36 @@ type GoDefinition_0_3 struct {
 	Root      string      `json:"root,omitempty"`
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
+
+func (d *GoDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	req.Arguments = d.Arguments
+	return nil
+}
+
+func (d *GoDefinition_0_3) upgradeJST() error {
+	d.Arguments = upgradeArguments(d.Arguments)
+	return nil
+}
+
+func (d *GoDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"entrypoint": d.Entrypoint,
+	}, nil
+}
+
+func (d *GoDefinition_0_3) getEntrypoint() (string, error) {
+	return d.Entrypoint, nil
+}
+
+func (d *GoDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *GoDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &NodeDefinition_0_3{}
 
 type NodeDefinition_0_3 struct {
 	Entrypoint  string `json:"entrypoint"`
@@ -75,6 +202,37 @@ type NodeDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
+func (d *NodeDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	req.Arguments = d.Arguments
+	return nil
+}
+
+func (d *NodeDefinition_0_3) upgradeJST() error {
+	d.Arguments = upgradeArguments(d.Arguments)
+	return nil
+}
+
+func (d *NodeDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"entrypoint":  d.Entrypoint,
+		"nodeVersion": d.NodeVersion,
+	}, nil
+}
+
+func (d *NodeDefinition_0_3) getEntrypoint() (string, error) {
+	return d.Entrypoint, nil
+}
+
+func (d *NodeDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *NodeDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &PythonDefinition_0_3{}
+
 type PythonDefinition_0_3 struct {
 	Entrypoint string `json:"entrypoint"`
 	// TODO: default {{JSON.stringify(params)}}
@@ -82,6 +240,36 @@ type PythonDefinition_0_3 struct {
 	Root      string      `json:"root,omitempty"`
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
+
+func (d *PythonDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	req.Arguments = d.Arguments
+	return nil
+}
+
+func (d *PythonDefinition_0_3) upgradeJST() error {
+	d.Arguments = upgradeArguments(d.Arguments)
+	return nil
+}
+
+func (d *PythonDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"entrypoint": d.Entrypoint,
+	}, nil
+}
+
+func (d *PythonDefinition_0_3) getEntrypoint() (string, error) {
+	return d.Entrypoint, nil
+}
+
+func (d *PythonDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *PythonDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &ShellDefinition_0_3{}
 
 type ShellDefinition_0_3 struct {
 	Entrypoint string `json:"entrypoint"`
@@ -91,11 +279,85 @@ type ShellDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
+func (d *ShellDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	req.Arguments = d.Arguments
+	return nil
+}
+
+func (d *ShellDefinition_0_3) upgradeJST() error {
+	d.Arguments = upgradeArguments(d.Arguments)
+	return nil
+}
+
+func (d *ShellDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"entrypoint": d.Entrypoint,
+	}, nil
+}
+
+func (d *ShellDefinition_0_3) getEntrypoint() (string, error) {
+	return d.Entrypoint, nil
+}
+
+func (d *ShellDefinition_0_3) getRoot() (string, error) {
+	return d.Root, nil
+}
+
+func (d *ShellDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return d.Env, nil
+}
+
+var _ taskKind_0_3 = &SQLDefinition_0_3{}
+
 type SQLDefinition_0_3 struct {
 	Resource   string                 `json:"resource"`
 	Entrypoint string                 `json:"entrypoint"`
 	Parameters map[string]interface{} `json:"parameters,omitempty"`
 }
+
+func (d *SQLDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	resourcesByName, err := getResourcesByName(ctx, client)
+	if err != nil {
+		return err
+	}
+	if res, ok := resourcesByName[d.Resource]; ok {
+		req.Resources = map[string]string{
+			"db": res.ID,
+		}
+	} else {
+		return errors.Errorf("unknown resource: %s", d.Resource)
+	}
+	return nil
+}
+
+func (d *SQLDefinition_0_3) upgradeJST() error {
+	return nil
+}
+
+func (d *SQLDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	queryBytes, err := os.ReadFile(d.Entrypoint)
+	if err != nil {
+		return nil, errors.Wrapf(err, "reading SQL entrypoint %s", d.Entrypoint)
+	}
+	return build.KindOptions{
+		"query":     string(queryBytes),
+		"queryArgs": d.Parameters,
+	}, nil
+}
+
+func (d *SQLDefinition_0_3) getEntrypoint() (string, error) {
+	return d.Entrypoint, nil
+}
+
+func (d *SQLDefinition_0_3) getRoot() (string, error) {
+	return "", nil
+}
+
+func (d *SQLDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return nil, nil
+}
+
+var _ taskKind_0_3 = &RESTDefinition_0_3{}
 
 type RESTDefinition_0_3 struct {
 	Resource  string                 `json:"resource"`
@@ -106,6 +368,49 @@ type RESTDefinition_0_3 struct {
 	BodyType  string                 `json:"bodyType"`
 	Body      string                 `json:"body,omitempty"`
 	FormData  map[string]interface{} `json:"formData,omitempty"`
+}
+
+func (d *RESTDefinition_0_3) updateTaskRequest(ctx context.Context, client *api.Client, req *api.UpdateTaskRequest) error {
+	resourcesByName, err := getResourcesByName(ctx, client)
+	if err != nil {
+		return err
+	}
+	if res, ok := resourcesByName[d.Resource]; ok {
+		req.Resources = map[string]string{
+			"rest": res.ID,
+		}
+	} else {
+		return errors.Errorf("unknown resource: %s", d.Resource)
+	}
+	return nil
+}
+
+func (d *RESTDefinition_0_3) upgradeJST() error {
+	return nil
+}
+
+func (d *RESTDefinition_0_3) getKindOptions() (build.KindOptions, error) {
+	return build.KindOptions{
+		"method":    d.Method,
+		"path":      d.Path,
+		"urlParams": d.URLParams,
+		"headers":   d.Headers,
+		"bodyType":  d.BodyType,
+		"body":      d.Body,
+		"formData":  d.FormData,
+	}, nil
+}
+
+func (d *RESTDefinition_0_3) getEntrypoint() (string, error) {
+	return "", ErrNoEntrypoint
+}
+
+func (d *RESTDefinition_0_3) getRoot() (string, error) {
+	return "", nil
+}
+
+func (d *RESTDefinition_0_3) getEnv() (api.TaskEnv, error) {
+	return nil, nil
 }
 
 type ParameterDefinition_0_3 struct {
@@ -284,6 +589,30 @@ func (d Definition_0_3) Kind() (build.TaskKind, error) {
 	}
 }
 
+func (d Definition_0_3) taskKind() (taskKind_0_3, error) {
+	if d.Deno != nil {
+		return d.Deno, nil
+	} else if d.Dockerfile != nil {
+		return d.Dockerfile, nil
+	} else if d.Go != nil {
+		return d.Go, nil
+	} else if d.Image != nil {
+		return d.Image, nil
+	} else if d.Node != nil {
+		return d.Node, nil
+	} else if d.Python != nil {
+		return d.Python, nil
+	} else if d.Shell != nil {
+		return d.Shell, nil
+	} else if d.SQL != nil {
+		return d.SQL, nil
+	} else if d.REST != nil {
+		return d.REST, nil
+	} else {
+		return nil, errors.New("incomplete task definition")
+	}
+}
+
 func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client *api.Client, image *string) (api.UpdateTaskRequest, error) {
 	req := api.UpdateTaskRequest{
 		Slug:        d.Slug,
@@ -393,129 +722,44 @@ func (d Definition_0_3) convertKindSpecifics(ctx context.Context, client *api.Cl
 	}
 	req.Env = env
 
-	switch req.Kind {
-	case build.TaskKindDeno:
-		req.Arguments = d.Deno.Arguments
-	case build.TaskKindDockerfile:
-		// nothing
-	case build.TaskKindGo:
-		req.Arguments = d.Go.Arguments
-	case build.TaskKindImage:
-		req.Image = &d.Image.Image
-		req.Command = d.Image.Command
-	case build.TaskKindNode:
-		req.Arguments = d.Node.Arguments
-	case build.TaskKindPython:
-		req.Arguments = d.Python.Arguments
-	case build.TaskKindShell:
-		req.Arguments = d.Shell.Arguments
-	case build.TaskKindSQL:
-		if res, ok := resourcesByName[d.SQL.Resource]; ok {
-			req.Resources = map[string]string{
-				"db": res.ID,
-			}
-		} else {
-			return errors.Errorf("unknown resource: %s", d.SQL.Resource)
-		}
-	case build.TaskKindREST:
-		if res, ok := resourcesByName[d.REST.Resource]; ok {
-			req.Resources = map[string]string{
-				"rest": res.ID,
-			}
-		} else {
-			return errors.Errorf("unknown resource: %s", d.REST.Resource)
-		}
-	default:
-		return errors.Errorf("unhandled kind: %s", req.Kind)
+	taskKind, err := d.taskKind()
+	if err != nil {
+		return err
+	}
+	if err := taskKind.updateTaskRequest(ctx, client, req); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (d Definition_0_3) Root(dir string) (string, error) {
-	kind, err := d.Kind()
+	taskKind, err := d.taskKind()
 	if err != nil {
 		return "", err
 	}
-
-	var root string
-
-	switch kind {
-	case build.TaskKindDeno:
-		root = d.Deno.Root
-	case build.TaskKindDockerfile:
-		root = d.Dockerfile.Root
-	case build.TaskKindGo:
-		root = d.Go.Root
-	case build.TaskKindImage:
-		root = d.Image.Root
-	case build.TaskKindNode:
-		root = d.Node.Root
-	case build.TaskKindPython:
-		root = d.Python.Root
-	case build.TaskKindShell:
-		root = d.Shell.Root
-	case build.TaskKindSQL, build.TaskKindREST:
-		return "", nil
-	default:
-		return "", errors.Errorf("unhandled kind: %s", kind)
+	root, err := taskKind.getRoot()
+	if err != nil {
+		return "", err
 	}
-
 	return path.Join(dir, root), nil
 }
 
 var ErrNoEntrypoint = errors.New("No entrypoint")
 
 func (d Definition_0_3) Entrypoint() (string, error) {
-	kind, err := d.Kind()
+	taskKind, err := d.taskKind()
 	if err != nil {
 		return "", err
 	}
-
-	switch kind {
-	case build.TaskKindDeno:
-		return d.Deno.Entrypoint, nil
-	case build.TaskKindGo:
-		return d.Go.Entrypoint, nil
-	case build.TaskKindNode:
-		return d.Node.Entrypoint, nil
-	case build.TaskKindPython:
-		return d.Python.Entrypoint, nil
-	case build.TaskKindShell:
-		return d.Shell.Entrypoint, nil
-	case build.TaskKindSQL:
-		return d.SQL.Entrypoint, nil
-	case build.TaskKindDockerfile, build.TaskKindImage, build.TaskKindREST:
-		return "", ErrNoEntrypoint
-	default:
-		return "", errors.Errorf("unhandled kind: %s", kind)
-	}
+	return taskKind.getEntrypoint()
 }
 
 func (d *Definition_0_3) UpgradeJST() error {
-	kind, err := d.Kind()
+	taskKind, err := d.taskKind()
 	if err != nil {
 		return err
 	}
-
-	switch kind {
-	case build.TaskKindDeno:
-		d.Deno.Arguments = upgradeArguments(d.Deno.Arguments)
-		return nil
-	case build.TaskKindGo:
-		d.Go.Arguments = upgradeArguments(d.Go.Arguments)
-		return nil
-	case build.TaskKindNode:
-		d.Node.Arguments = upgradeArguments(d.Node.Arguments)
-		return nil
-	case build.TaskKindPython:
-		d.Python.Arguments = upgradeArguments(d.Python.Arguments)
-		return nil
-	case build.TaskKindDockerfile, build.TaskKindImage, build.TaskKindShell,
-		build.TaskKindSQL, build.TaskKindREST:
-		return nil
-	default:
-		return errors.Errorf("unhandled kind: %s", kind)
-	}
+	return taskKind.upgradeJST()
 }
 
 func (d *Definition_0_3) GetKindAndOptions() (build.TaskKind, build.KindOptions, error) {
@@ -524,86 +768,40 @@ func (d *Definition_0_3) GetKindAndOptions() (build.TaskKind, build.KindOptions,
 		return "", nil, err
 	}
 
-	switch kind {
-	case build.TaskKindDeno:
-		return kind, build.KindOptions{
-			"entrypoint": d.Deno.Entrypoint,
-		}, nil
-	case build.TaskKindDockerfile:
-		return kind, build.KindOptions{
-			"dockerfile": d.Dockerfile.Dockerfile,
-		}, nil
-	case build.TaskKindGo:
-		return kind, build.KindOptions{
-			"entrypoint": d.Go.Entrypoint,
-		}, nil
-	case build.TaskKindImage:
-		return kind, build.KindOptions{}, nil
-	case build.TaskKindNode:
-		return kind, build.KindOptions{
-			"entrypoint":  d.Node.Entrypoint,
-			"nodeVersion": d.Node.NodeVersion,
-		}, nil
-	case build.TaskKindPython:
-		return kind, build.KindOptions{
-			"entrypoint": d.Python.Entrypoint,
-		}, nil
-	case build.TaskKindShell:
-		return kind, build.KindOptions{
-			"entrypoint": d.Shell.Entrypoint,
-		}, nil
-	case build.TaskKindSQL:
-		queryBytes, err := os.ReadFile(d.SQL.Entrypoint)
-		if err != nil {
-			return "", nil, errors.Wrapf(err, "reading SQL entrypoint %s", d.SQL.Entrypoint)
-		}
-		return kind, build.KindOptions{
-			"query":     string(queryBytes),
-			"queryArgs": d.SQL.Parameters,
-		}, nil
-	case build.TaskKindREST:
-		return kind, build.KindOptions{
-			"method":    d.REST.Method,
-			"path":      d.REST.Path,
-			"urlParams": d.REST.URLParams,
-			"headers":   d.REST.Headers,
-			"bodyType":  d.REST.BodyType,
-			"body":      d.REST.Body,
-			"formData":  d.REST.FormData,
-		}, nil
-	default:
-		return "", nil, errors.Errorf("unhandled kind: %s", kind)
+	taskKind, err := d.taskKind()
+	if err != nil {
+		return "", nil, err
 	}
+
+	options, err := taskKind.getKindOptions()
+	if err != nil {
+		return "", nil, err
+	}
+
+	return kind, options, nil
 }
 
 func (d *Definition_0_3) GetEnv() (api.TaskEnv, error) {
-	kind, err := d.Kind()
+	taskKind, err := d.taskKind()
 	if err != nil {
 		return nil, err
 	}
-
-	switch kind {
-	case build.TaskKindDeno:
-		return d.Deno.Env, nil
-	case build.TaskKindDockerfile:
-		return d.Dockerfile.Env, nil
-	case build.TaskKindGo:
-		return d.Go.Env, nil
-	case build.TaskKindImage:
-		return d.Image.Env, nil
-	case build.TaskKindNode:
-		return d.Node.Env, nil
-	case build.TaskKindPython:
-		return d.Python.Env, nil
-	case build.TaskKindShell:
-		return d.Shell.Env, nil
-	case build.TaskKindSQL, build.TaskKindREST:
-		return nil, nil
-	default:
-		return nil, errors.Errorf("unhandled kind: %s", kind)
-	}
+	return taskKind.getEnv()
 }
 
 func (d *Definition_0_3) GetSlug() string {
 	return d.Slug
+}
+
+func getResourcesByName(ctx context.Context, client *api.Client) (map[string]api.Resource, error) {
+	// Remap resources from ref -> name to ref -> id.
+	resp, err := client.ListResources(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching resources")
+	}
+	resourcesByName := map[string]api.Resource{}
+	for _, resource := range resp.Resources {
+		resourcesByName[resource.Name] = resource
+	}
+	return resourcesByName, nil
 }
