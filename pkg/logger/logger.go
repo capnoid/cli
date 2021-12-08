@@ -16,6 +16,39 @@ var (
 	EnableDebug bool
 )
 
+type Logger interface {
+	Log(msg string, args ...interface{})
+	Warning(msg string, args ...interface{})
+	Step(msg string, args ...interface{})
+	Suggest(title, command string, args ...interface{})
+	Debug(msg string, args ...interface{})
+}
+
+var _ Logger = &StdErrLogger{}
+
+type StdErrLogger struct {
+}
+
+func (l *StdErrLogger) Log(msg string, args ...interface{}) {
+	Log(msg, args...)
+}
+
+func (l *StdErrLogger) Debug(msg string, args ...interface{}) {
+	Debug(msg, args...)
+}
+
+func (l *StdErrLogger) Warning(msg string, args ...interface{}) {
+	Warning(msg, args...)
+}
+
+func (l *StdErrLogger) Step(msg string, args ...interface{}) {
+	Step(msg, args...)
+}
+
+func (l *StdErrLogger) Suggest(title, command string, args ...interface{}) {
+	Suggest(title, command, args...)
+}
+
 // Log writes a log message to stderr, followed by a newline. Printf-style
 // formatting is applied to msg using args.
 func Log(msg string, args ...interface{}) {
