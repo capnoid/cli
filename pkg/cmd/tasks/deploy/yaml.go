@@ -143,13 +143,22 @@ More information: https://apn.sh/jst-upgrade`)
 	if ok, err := libBuild.NeedsBuilding(kind); err != nil {
 		return err
 	} else if ok {
-		resp, err := build.Run(ctx, build.NewDeployer(), build.Request{
-			Local:  cfg.local,
+		var bc build.BuildCreator
+		if cfg.local {
+			bc = build.NewLocalBuildCreator()
+		} else {
+			bc = build.NewRemoteBuildCreator()
+		}
+		resp, err := bc.CreateBuild(ctx, build.Request{
 			Client: client,
 			Root:   dir.DefinitionRootPath(),
 			Def:    &def,
 			TaskID: task.ID,
 		})
+		if err != nil {
+			return err
+		}
+
 		props.buildLocal = cfg.local
 		if resp != nil {
 			props.buildID = resp.BuildID
