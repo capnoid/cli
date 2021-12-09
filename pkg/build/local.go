@@ -6,7 +6,6 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/configs"
 	"github.com/airplanedev/cli/pkg/logger"
-	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
 )
@@ -14,7 +13,11 @@ import (
 func (d *Deployer) local(ctx context.Context, req Request) (*build.Response, error) {
 	registry, err := d.getRegistryToken(ctx, req.Client)
 
-	buildEnv, err := getBuildEnv(ctx, req.Client, req.Def)
+	env, err := req.Def.GetEnv()
+	if err != nil {
+		return nil, err
+	}
+	buildEnv, err := getBuildEnv(ctx, req.Client, env)
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +62,9 @@ func (d *Deployer) local(ctx context.Context, req Request) (*build.Response, err
 
 // Retrieves a build env from def - looks for env vars starting with BUILD_ and either uses the
 // string literal or looks up the config value.
-func getBuildEnv(ctx context.Context, client *api.Client, def definitions.Definition) (map[string]string, error) {
+func getBuildEnv(ctx context.Context, client *api.Client, taskEnv api.TaskEnv) (map[string]string, error) {
 	buildEnv := make(map[string]string)
-	for k, v := range def.Env {
+	for k, v := range taskEnv {
 		if v.Value != nil {
 			buildEnv[k] = *v.Value
 		} else if v.Config != nil {

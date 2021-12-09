@@ -196,7 +196,8 @@ func initWithTaskDef(ctx context.Context, cfg config) error {
 	defFn := fmt.Sprintf("%s.task.%s", slug, cfg.defFormat)
 	if fsx.Exists(defFn) {
 		// If it exists, check for existence of this file before overwriting it.
-		if ok, err := confirm(fmt.Sprintf("Would you like to overwrite %s?", defFn), "", cfg.assumeYes, cfg.assumeNo); err != nil {
+		question := fmt.Sprintf("Would you like to overwrite %s?", defFn)
+		if ok, err := utils.ConfirmWithAssumptions(question, cfg.assumeYes, cfg.assumeNo); err != nil {
 			return err
 		} else if !ok {
 			// User answered "no", so bail here.
@@ -497,29 +498,6 @@ func createEntrypoint(r runtime.Interface, entrypoint string, task *api.Task) er
 	}
 
 	return nil
-}
-
-func confirm(msg, help string, assumeYes, assumeNo bool) (bool, error) {
-	if assumeYes {
-		return true, nil
-	}
-	if assumeNo {
-		return false, nil
-	}
-
-	// Prompt user.
-	var ok bool
-	if err := survey.AskOne(
-		&survey.Confirm{
-			Message: msg,
-			Help:    help,
-			Default: true,
-		},
-		&ok,
-	); err != nil {
-		return false, err
-	}
-	return ok, nil
 }
 
 func apiTaskToRuntimeTask(task *api.Task) *runtime.Task {

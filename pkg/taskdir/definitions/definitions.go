@@ -1,6 +1,7 @@
 package definitions
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -91,7 +92,7 @@ func NewDefinitionFromTask(task api.Task) (Definition, error) {
 	return def, nil
 }
 
-func (def Definition) GetKindAndOptions() (build.TaskKind, build.KindOptions, error) {
+func (def *Definition) GetKindAndOptions() (build.TaskKind, build.KindOptions, error) {
 	options := build.KindOptions{}
 	if def.Deno != nil {
 		if err := mapstructure.Decode(def.Deno, &options); err != nil {
@@ -257,17 +258,55 @@ func (def Definition) Validate() (Definition, error) {
 	return def, nil
 }
 
-var jsonRegex = regexp.MustCompile(`{{ *JSON *}}`)
-
 // Upgrades this task definition for JST interpolation.
 // Assumes only usage of expressions is {{JSON}}.
-func (def *Definition) UpgradeJST() {
-	args := []string{}
-	for _, arg := range def.Arguments {
+func (def *Definition) UpgradeJST() error {
+	def.Arguments = upgradeArguments(def.Arguments)
+	return nil
+}
+
+var jsonRegex = regexp.MustCompile(`{{ *JSON *}}`)
+
+func upgradeArguments(args []string) []string {
+	upgraded := make([]string, len(args))
+	for i, arg := range args {
 		jstArg := jsonRegex.ReplaceAllString(arg, "{{JSON.stringify(params)}}")
-		args = append(args, jstArg)
+		upgraded[i] = jstArg
 	}
-	def.Arguments = args
+	return upgraded
+}
+
+func (def *Definition) GetEnv() (api.TaskEnv, error) {
+	return def.Env, nil
+}
+
+func (def *Definition) GetSlug() string {
+	return def.Slug
+}
+
+func (def *Definition) GetUpdateTaskRequest(ctx context.Context, client *api.Client, image *string) (api.UpdateTaskRequest, error) {
+	kind, options, err := def.GetKindAndOptions()
+	if err != nil {
+		return api.UpdateTaskRequest{}, err
+	}
+
+	return api.UpdateTaskRequest{
+		Slug:             def.Slug,
+		Name:             def.Name,
+		Description:      def.Description,
+		Image:            image,
+		Command:          []string{},
+		Arguments:        def.Arguments,
+		Parameters:       def.Parameters,
+		Constraints:      def.Constraints,
+		Env:              def.Env,
+		ResourceRequests: def.ResourceRequests,
+		Resources:        def.Resources,
+		Kind:             kind,
+		KindOptions:      options,
+		Repo:             def.Repo,
+		Timeout:          def.Timeout,
+	}, nil
 }
 
 func UnmarshalDefinition(buf []byte, defPath string) (Definition, error) {

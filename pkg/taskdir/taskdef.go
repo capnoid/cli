@@ -31,6 +31,29 @@ func (td TaskDirectory) ReadDefinition() (definitions.Definition, error) {
 	return definitions.UnmarshalDefinition(buf, defPath)
 }
 
+func (td TaskDirectory) ReadDefinition_0_3() (definitions.Definition_0_3, error) {
+	buf, err := ioutil.ReadFile(td.defPath)
+	if err != nil {
+		return definitions.Definition_0_3{}, errors.Wrap(err, "reading task definition")
+	}
+
+	defPath := td.defPath
+	// Attempt to set a prettier defPath, best effort
+	if wd, err := os.Getwd(); err != nil {
+		logger.Debug("%s", err)
+	} else if path, err := filepath.Rel(wd, defPath); err != nil {
+		logger.Debug("%s", err)
+	} else {
+		defPath = path
+	}
+
+	def := definitions.Definition_0_3{}
+	if err := def.Unmarshal(definitions.GetTaskDefFormat(defPath), buf); err != nil {
+		return definitions.Definition_0_3{}, errors.Wrap(err, "unmarshalling task definition")
+	}
+	return def, nil
+}
+
 // WriteSlug updates the slug of a task definition and persists td to disk.
 //
 // It attempts to retain the existing file's formatting (comments, etc.) where possible.

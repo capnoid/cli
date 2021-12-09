@@ -51,7 +51,7 @@ func run(ctx context.Context, cfg config) error {
 			return errors.New("expected either a task slug or --file")
 		}
 
-		dir, err := taskdir.Open(cfg.file)
+		dir, err := taskdir.Open(cfg.file, false)
 		if err != nil {
 			return err
 		}

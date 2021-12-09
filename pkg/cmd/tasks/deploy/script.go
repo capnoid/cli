@@ -226,7 +226,9 @@ func (d *scriptDeployer) deploySingleTaskFromScript(ctx context.Context, cfg con
 			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
 More information: https://apn.sh/jst-upgrade`)
 			interpolationMode = "jst"
-			tc.def.UpgradeJST()
+			if err := tc.def.UpgradeJST(); err != nil {
+				return err
+			}
 		} else {
 			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
 been automatically upgraded because of potential backwards-compatibility issues
@@ -246,13 +248,17 @@ More information: https://apn.sh/jst-upgrade`)
 	gitMeta.User = conf.GetGitUser()
 	gitMeta.Repository = conf.GetGitRepo()
 
+	env, err := tc.def.GetEnv()
+	if err != nil {
+		return err
+	}
 	resp, err := build.Run(ctx, d.deployer, build.Request{
 		Local:   cfg.local,
 		Client:  client,
 		TaskID:  task.ID,
 		Root:    tc.taskRoot,
 		Def:     tc.def,
-		TaskEnv: tc.def.Env,
+		TaskEnv: env,
 		Shim:    true,
 		GitMeta: gitMeta,
 	})
@@ -261,27 +267,17 @@ More information: https://apn.sh/jst-upgrade`)
 	}
 	tp.buildID = resp.BuildID
 
-	_, err = client.UpdateTask(ctx, api.UpdateTaskRequest{
-		Slug:                       tc.def.Slug,
-		Name:                       tc.def.Name,
-		Description:                tc.def.Description,
-		Image:                      &resp.ImageURL,
-		Command:                    []string{},
-		Arguments:                  tc.def.Arguments,
-		Parameters:                 tc.def.Parameters,
-		Constraints:                tc.def.Constraints,
-		Env:                        tc.def.Env,
-		ResourceRequests:           tc.def.ResourceRequests,
-		Resources:                  tc.def.Resources,
-		Kind:                       tc.kind,
-		KindOptions:                tc.kindOptions,
-		Repo:                       tc.def.Repo,
-		RequireExplicitPermissions: task.RequireExplicitPermissions,
-		Permissions:                task.Permissions,
-		Timeout:                    tc.def.Timeout,
-		BuildID:                    pointers.String(resp.BuildID),
-		InterpolationMode:          interpolationMode,
-	})
+	utr, err := tc.def.GetUpdateTaskRequest(ctx, client, &resp.ImageURL)
+	if err != nil {
+		return err
+	}
+
+	utr.BuildID = pointers.String(resp.BuildID)
+	utr.InterpolationMode = interpolationMode
+	utr.RequireExplicitPermissions = task.RequireExplicitPermissions
+	utr.Permissions = task.Permissions
+
+	_, err = client.UpdateTask(ctx, utr)
 	return err
 }
 
@@ -290,7 +286,7 @@ type taskConfig struct {
 	workingDirectory string
 	taskFilePath     string
 	task             api.Task
-	def              definitions.Definition
+	def              definitions.DefinitionInterface
 	kind             libBuild.TaskKind
 	kindOptions      libBuild.KindOptions
 }
@@ -340,7 +336,7 @@ func getTaskConfigFromScript(ctx context.Context, client api.Client, script scri
 		taskRoot:         taskroot,
 		workingDirectory: wd,
 		taskFilePath:     absFile,
-		def:              def,
+		def:              &def,
 		kind:             kind,
 		kindOptions:      kindOptions,
 		task:             task,

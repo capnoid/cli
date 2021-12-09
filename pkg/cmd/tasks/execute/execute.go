@@ -174,7 +174,7 @@ func slugFrom(file string) (string, error) {
 
 // slugFromYaml attempts to extract a slug from a yaml definition.
 func slugFromYaml(file string) (string, error) {
-	dir, err := taskdir.Open(file)
+	dir, err := taskdir.Open(file, false)
 	if err != nil {
 		return "", err
 	}
