@@ -8,6 +8,7 @@ import (
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
 	"github.com/airplanedev/cli/pkg/cmd/tasks/deploy/discover"
+	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/cli/pkg/utils/pointers"
 	libBuild "github.com/airplanedev/lib/pkg/build"
@@ -135,7 +136,7 @@ func TestDeployTasks(t *testing.T) {
 				changedFiles: tC.changedFiles,
 				client:       client,
 			}
-			d := NewDeployer(cfg, DeployerOpts{
+			d := NewDeployer(cfg, &logger.MockLogger{}, DeployerOpts{
 				BuildCreator: &build.MockBuildCreator{},
 			})
 			err := d.DeployTasks(context.Background(), tC.taskConfigs)

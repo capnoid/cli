@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/lib/pkg/build"
 	_ "github.com/airplanedev/lib/pkg/runtime/javascript"
@@ -171,10 +172,10 @@ func TestDiscoverTasks(t *testing.T) {
 			},
 		},
 		{
-			name:          "task not returned by api",
-			paths:         []string{"./fixtures/single_task.js"},
+			name:          "task not returned by api - deploy skipped",
+			paths:         []string{"./fixtures/single_task.js", "./fixtures/defn.task.yaml"},
 			existingTasks: map[string]api.Task{},
-			expectedErr:   true,
+			expectedErr:   false,
 		},
 	}
 	for _, tC := range tests {
@@ -191,6 +192,7 @@ func TestDiscoverTasks(t *testing.T) {
 				Client: &api.MockClient{
 					Tasks: tC.existingTasks,
 				},
+				Logger: &logger.MockLogger{},
 			}
 			got, err := d.DiscoverTasks(context.Background(), tC.paths...)
 			if tC.expectedErr {

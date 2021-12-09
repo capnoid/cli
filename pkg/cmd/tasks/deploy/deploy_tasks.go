@@ -26,6 +26,7 @@ import (
 type deployer struct {
 	buildCreator build.BuildCreator
 	cfg          config
+	logger       logger.Logger
 
 	erroredTaskSlugs  map[string]error
 	deployedTaskSlugs []string
@@ -36,7 +37,7 @@ type DeployerOpts struct {
 	BuildCreator build.BuildCreator
 }
 
-func NewDeployer(cfg config, opts DeployerOpts) *deployer {
+func NewDeployer(cfg config, logger logger.Logger, opts DeployerOpts) *deployer {
 	var bc build.BuildCreator
 	if cfg.local {
 		bc = build.NewLocalBuildCreator()
@@ -50,6 +51,7 @@ func NewDeployer(cfg config, opts DeployerOpts) *deployer {
 		buildCreator:     bc,
 		erroredTaskSlugs: make(map[string]error),
 		cfg:              cfg,
+		logger:           logger,
 	}
 }
 
@@ -69,13 +71,13 @@ func (d *deployer) DeployTasks(ctx context.Context, taskConfigs []discover.TaskC
 			}
 		}
 		if len(taskConfigs) != len(filteredTaskConfigs) {
-			logger.Log("Changed files specified. Filtered %d task(s) to %d affected task(s)", len(taskConfigs), len(filteredTaskConfigs))
+			d.logger.Log("Changed files specified. Filtered %d task(s) to %d affected task(s)", len(taskConfigs), len(filteredTaskConfigs))
 		}
 		taskConfigs = filteredTaskConfigs
 	}
 
 	if len(taskConfigs) == 0 {
-		logger.Log("No tasks to deploy")
+		d.logger.Log("No tasks to deploy")
 		return nil
 	}
 
@@ -84,16 +86,16 @@ func (d *deployer) DeployTasks(ctx context.Context, taskConfigs []discover.TaskC
 	if len(taskConfigs) > 1 {
 		noun = fmt.Sprintf("%ss", noun)
 	}
-	logger.Log("Deploying %v %v:\n", len(taskConfigs), noun)
+	d.logger.Log("Deploying %v %v:\n", len(taskConfigs), noun)
 	for _, tc := range taskConfigs {
-		logger.Log(logger.Bold(tc.Task.Slug))
-		logger.Log("Type: %s", tc.Task.Kind)
-		logger.Log("Root directory: %s", relpath(tc.TaskRoot))
+		d.logger.Log(logger.Bold(tc.Task.Slug))
+		d.logger.Log("Type: %s", tc.Task.Kind)
+		d.logger.Log("Root directory: %s", relpath(tc.TaskRoot))
 		if tc.WorkingDirectory != tc.TaskRoot {
-			logger.Log("Working directory: %s", relpath(tc.WorkingDirectory))
+			d.logger.Log("Working directory: %s", relpath(tc.WorkingDirectory))
 		}
-		logger.Log("URL: %s", d.cfg.client.TaskURL(tc.Task.Slug))
-		logger.Log("")
+		d.logger.Log("URL: %s", d.cfg.client.TaskURL(tc.Task.Slug))
+		d.logger.Log("")
 	}
 
 	g := new(errgroup.Group)
@@ -120,14 +122,14 @@ func (d *deployer) DeployTasks(ctx context.Context, taskConfigs []discover.TaskC
 
 	// All of the deploys have finished.
 	for taskSlug, err := range d.erroredTaskSlugs {
-		logger.Log("\n" + logger.Bold(taskSlug))
-		logger.Log("Status: " + logger.Bold(logger.Red("failed")))
-		logger.Error(err.Error())
+		d.logger.Log("\n" + logger.Bold(taskSlug))
+		d.logger.Log("Status: " + logger.Bold(logger.Red("failed")))
+		d.logger.Error(err.Error())
 	}
 	for _, slug := range d.deployedTaskSlugs {
-		logger.Log("\n" + logger.Bold(slug))
-		logger.Log("Status: %s", logger.Bold(logger.Green("succeeded")))
-		logger.Log("Execute the task: %s", d.cfg.client.TaskURL(slug))
+		d.logger.Log("\n" + logger.Bold(slug))
+		d.logger.Log("Status: %s", logger.Bold(logger.Green("succeeded")))
+		d.logger.Log("Execute the task: %s", d.cfg.client.TaskURL(slug))
 	}
 
 	return groupErr
@@ -160,14 +162,14 @@ func (d *deployer) deployTask(ctx context.Context, cfg config, tc discover.TaskC
 	interpolationMode := tc.Task.InterpolationMode
 	if interpolationMode != "jst" {
 		if cfg.upgradeInterpolation {
-			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
+			d.logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
 More information: https://apn.sh/jst-upgrade`)
 			interpolationMode = "jst"
 			if err := tc.Def.UpgradeJST(); err != nil {
 				return err
 			}
 		} else {
-			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
+			d.logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
 been automatically upgraded because of potential backwards-compatibility issues
 (e.g. uploads will be passed to your task as an object with a url field instead
 of just the url string).
@@ -187,7 +189,7 @@ More information: https://apn.sh/jst-upgrade`)
 	} else if ok {
 		gitMeta, err := getGitMetadata(tc.TaskFilePath)
 		if err != nil {
-			logger.Debug("failed to gather git metadata: %v", err)
+			d.logger.Debug("failed to gather git metadata: %v", err)
 			analytics.ReportError(errors.Wrap(err, "failed to gather git metadata"))
 		}
 		gitMeta.User = conf.GetGitUser()

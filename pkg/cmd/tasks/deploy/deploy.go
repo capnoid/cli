@@ -108,14 +108,22 @@ func run(ctx context.Context, cfg config) error {
 		return deployFromYaml(ctx, cfg)
 	}
 
+	l := &logger.StdErrLogger{}
+
 	d := &discover.Discoverer{
 		TaskDiscoverers: []discover.TaskDiscoverer{
 			&discover.ScriptDiscoverer{},
 		},
 		Client: cfg.client,
+		Logger: l,
 	}
 	if cfg.dev {
-		d.TaskDiscoverers = append(d.TaskDiscoverers, &discover.DefnDiscoverer{Client: cfg.client})
+		d.TaskDiscoverers = append(d.TaskDiscoverers, &discover.DefnDiscoverer{
+			Client:    cfg.client,
+			Logger:    l,
+			AssumeYes: cfg.assumeYes,
+			AssumeNo:  cfg.assumeNo,
+		})
 	}
 
 	loader := logger.NewLoader(logger.LoaderOpts{HideLoader: logger.EnableDebug})
@@ -126,5 +134,5 @@ func run(ctx context.Context, cfg config) error {
 	}
 	loader.Stop()
 
-	return NewDeployer(cfg, DeployerOpts{}).DeployTasks(ctx, taskConfigs)
+	return NewDeployer(cfg, l, DeployerOpts{}).DeployTasks(ctx, taskConfigs)
 }

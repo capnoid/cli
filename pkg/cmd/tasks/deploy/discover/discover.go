@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/airplanedev/cli/pkg/api"
+	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir/definitions"
 	"github.com/airplanedev/lib/pkg/build"
 	"github.com/pkg/errors"
@@ -40,11 +41,13 @@ type TaskDiscoverer interface {
 	IsAirplaneTask(ctx context.Context, file string) (slug string, err error)
 	GetTaskConfig(ctx context.Context, task api.Task, file string) (TaskConfig, error)
 	TaskConfigSource() TaskConfigSource
+	HandleMissingTask(ctx context.Context, file string) (api.Task, error)
 }
 
 type Discoverer struct {
 	TaskDiscoverers []TaskDiscoverer
 	Client          api.APIClient
+	Logger          logger.Logger
 }
 
 // DiscoverTasks recursively discovers Airplane tasks.
@@ -88,7 +91,18 @@ func (d *Discoverer) DiscoverTasks(ctx context.Context, paths ...string) ([]Task
 			}
 			task, err := d.Client.GetTask(ctx, slug)
 			if err != nil {
-				return nil, err
+				var missingErr *api.TaskMissingError
+				if errors.As(err, &missingErr) {
+					task, err = td.HandleMissingTask(ctx, p)
+					if err != nil {
+						return nil, err
+					} else if task.ID == "" {
+						d.Logger.Warning(`Task with slug %s does not exist, skipping deploy.`, slug)
+						continue
+					}
+				} else {
+					return nil, err
+				}
 			}
 			taskConfig, err := td.GetTaskConfig(ctx, task, p)
 			if err != nil {
