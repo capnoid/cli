@@ -12,5 +12,5 @@ type DefinitionInterface interface {
 	GetEnv() (api.TaskEnv, error)
 	GetSlug() string
 	UpgradeJST() error
-	UpdateTaskRequest(context.Context, api.APIClient, *string) (api.UpdateTaskRequest, error)
+	GetUpdateTaskRequest(context.Context, api.APIClient, *string) (api.UpdateTaskRequest, error)
 }

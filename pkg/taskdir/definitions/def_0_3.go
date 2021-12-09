@@ -38,7 +38,7 @@ type Definition_0_3 struct {
 }
 
 type taskKind_0_3 interface {
-	updateTaskRequest(context.Context, api.APIClient, *api.UpdateTaskRequest) error
+	fillInUpdateTaskRequest(context.Context, api.APIClient, *api.UpdateTaskRequest) error
 	upgradeJST() error
 	getKindOptions() (build.KindOptions, error)
 	getEntrypoint() (string, error)
@@ -55,7 +55,7 @@ type ImageDefinition_0_3 struct {
 	Env     api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *ImageDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *ImageDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	req.Image = &d.Image
 	req.Command = d.Command
 	return nil
@@ -91,7 +91,7 @@ type DenoDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *DenoDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *DenoDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	req.Arguments = d.Arguments
 	return nil
 }
@@ -127,7 +127,7 @@ type DockerfileDefinition_0_3 struct {
 	Env        api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *DockerfileDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *DockerfileDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	return nil
 }
 
@@ -163,7 +163,7 @@ type GoDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *GoDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *GoDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	req.Arguments = d.Arguments
 	return nil
 }
@@ -202,7 +202,7 @@ type NodeDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *NodeDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *NodeDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	req.Arguments = d.Arguments
 	return nil
 }
@@ -241,7 +241,7 @@ type PythonDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *PythonDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *PythonDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	req.Arguments = d.Arguments
 	return nil
 }
@@ -279,7 +279,7 @@ type ShellDefinition_0_3 struct {
 	Env       api.TaskEnv `json:"env,omitempty"`
 }
 
-func (d *ShellDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *ShellDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	req.Arguments = d.Arguments
 	return nil
 }
@@ -315,7 +315,7 @@ type SQLDefinition_0_3 struct {
 	Parameters map[string]interface{} `json:"parameters,omitempty"`
 }
 
-func (d *SQLDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *SQLDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	resourcesByName, err := getResourcesByName(ctx, client)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ type RESTDefinition_0_3 struct {
 	FormData  map[string]interface{} `json:"formData,omitempty"`
 }
 
-func (d *RESTDefinition_0_3) updateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d *RESTDefinition_0_3) fillInUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	resourcesByName, err := getResourcesByName(ctx, client)
 	if err != nil {
 		return err
@@ -613,7 +613,7 @@ func (d Definition_0_3) taskKind() (taskKind_0_3, error) {
 	}
 }
 
-func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client api.APIClient, image *string) (api.UpdateTaskRequest, error) {
+func (d Definition_0_3) GetUpdateTaskRequest(ctx context.Context, client api.APIClient, image *string) (api.UpdateTaskRequest, error) {
 	req := api.UpdateTaskRequest{
 		Slug:        d.Slug,
 		Name:        d.Name,
@@ -625,11 +625,11 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client api.APICli
 		req.Image = image
 	}
 
-	if err := d.convertParameters(ctx, &req); err != nil {
+	if err := d.addParametersToUpdateTaskRequest(ctx, &req); err != nil {
 		return api.UpdateTaskRequest{}, err
 	}
 
-	if err := d.convertPermissions(ctx, &req); err != nil {
+	if err := d.addPermissionsToUpdateTaskRequest(ctx, client, &req); err != nil {
 		return api.UpdateTaskRequest{}, err
 	}
 
@@ -637,15 +637,14 @@ func (d Definition_0_3) UpdateTaskRequest(ctx context.Context, client api.APICli
 		req.Constraints = *d.Constraints
 	}
 
-	if err := d.convertKindSpecifics(ctx, client, &req); err != nil {
+	if err := d.addKindSpecificsToUpdateTaskRequest(ctx, client, &req); err != nil {
 		return api.UpdateTaskRequest{}, err
 	}
 
 	return req, nil
 }
 
-func (d Definition_0_3) convertParameters(ctx context.Context, req *api.UpdateTaskRequest) error {
-	// Convert parameters.
+func (d Definition_0_3) addParametersToUpdateTaskRequest(ctx context.Context, req *api.UpdateTaskRequest) error {
 	req.Parameters = make([]api.Parameter, len(d.Parameters))
 	for i, pd := range d.Parameters {
 		param := api.Parameter{
@@ -687,7 +686,7 @@ func (d Definition_0_3) convertParameters(ctx context.Context, req *api.UpdateTa
 	return nil
 }
 
-func (d Definition_0_3) convertPermissions(ctx context.Context, req *api.UpdateTaskRequest) error {
+func (d Definition_0_3) addPermissionsToUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	if d.Permissions != nil && !d.Permissions.isEmpty() {
 		req.RequireExplicitPermissions = true
 		// TODO: convert permissions.
@@ -695,7 +694,7 @@ func (d Definition_0_3) convertPermissions(ctx context.Context, req *api.UpdateT
 	return nil
 }
 
-func (d Definition_0_3) convertKindSpecifics(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
+func (d Definition_0_3) addKindSpecificsToUpdateTaskRequest(ctx context.Context, client api.APIClient, req *api.UpdateTaskRequest) error {
 	resourcesByName := map[string]api.Resource{}
 	if d.SQL != nil || d.REST != nil {
 		// Remap resources from ref -> name to ref -> id.
@@ -708,7 +707,6 @@ func (d Definition_0_3) convertKindSpecifics(ctx context.Context, client api.API
 		}
 	}
 
-	// Convert kind-specific things.
 	kind, options, err := d.GetKindAndOptions()
 	if err != nil {
 		return err
@@ -726,7 +724,7 @@ func (d Definition_0_3) convertKindSpecifics(ctx context.Context, client api.API
 	if err != nil {
 		return err
 	}
-	if err := taskKind.updateTaskRequest(ctx, client, req); err != nil {
+	if err := taskKind.fillInUpdateTaskRequest(ctx, client, req); err != nil {
 		return err
 	}
 	return nil

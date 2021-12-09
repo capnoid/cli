@@ -128,7 +128,9 @@ func deployFromYaml(ctx context.Context, cfg config) (rErr error) {
 			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
 More information: https://apn.sh/jst-upgrade`)
 			interpolationMode = "jst"
-			def.UpgradeJST()
+			if err := def.UpgradeJST(); err != nil {
+				return err
+			}
 		} else {
 			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
 been automatically upgraded because of potential backwards-compatibility issues

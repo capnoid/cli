@@ -42,7 +42,7 @@ func (dd *DefnDiscoverer) GetTaskConfig(ctx context.Context, task api.Task, file
 		return TaskConfig{}, err
 	}
 
-	utr, err := def.UpdateTaskRequest(ctx, dd.Client, nil)
+	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client, nil)
 	if err != nil {
 		return TaskConfig{}, err
 	}

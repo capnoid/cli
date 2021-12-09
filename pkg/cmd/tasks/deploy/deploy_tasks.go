@@ -213,7 +213,7 @@ More information: https://apn.sh/jst-upgrade`)
 		image = &resp.ImageURL
 	}
 
-	utr, err := tc.Def.UpdateTaskRequest(ctx, client, image)
+	utr, err := tc.Def.GetUpdateTaskRequest(ctx, client, image)
 	if err != nil {
 		return err
 	}
