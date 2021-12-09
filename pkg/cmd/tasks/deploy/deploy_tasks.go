@@ -136,7 +136,7 @@ func (d *deployer) DeployTasks(ctx context.Context, taskConfigs []discover.TaskC
 func (d *deployer) deployTask(ctx context.Context, cfg config, tc discover.TaskConfig) (rErr error) {
 	client := cfg.client
 	tp := taskDeployedProps{
-		from:       "script",
+		from:       string(tc.From),
 		kind:       tc.Kind,
 		taskID:     tc.Task.ID,
 		taskSlug:   tc.Task.Slug,
