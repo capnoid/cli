@@ -155,10 +155,6 @@ More information: https://apn.sh/jst-upgrade`)
 			Def:    &def,
 			TaskID: task.ID,
 		})
-		if err != nil {
-			return err
-		}
-
 		props.buildLocal = cfg.local
 		if resp != nil {
 			props.buildID = resp.BuildID
