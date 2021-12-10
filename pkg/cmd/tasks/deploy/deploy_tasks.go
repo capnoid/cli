@@ -179,6 +179,11 @@ More information: https://apn.sh/jst-upgrade`)
 		}
 	}
 
+	err := ensureConfigVarsExist(ctx, client, tc.Def)
+	if err != nil {
+		return err
+	}
+
 	kind, _, err := tc.Def.GetKindAndOptions()
 	if err != nil {
 		return err
