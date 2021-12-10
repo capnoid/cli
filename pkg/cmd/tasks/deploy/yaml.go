@@ -8,6 +8,7 @@ import (
 	"github.com/airplanedev/cli/pkg/analytics"
 	"github.com/airplanedev/cli/pkg/api"
 	"github.com/airplanedev/cli/pkg/build"
+	"github.com/airplanedev/cli/pkg/cmd/tasks/deploy/archive"
 	"github.com/airplanedev/cli/pkg/logger"
 	"github.com/airplanedev/cli/pkg/taskdir"
 	libBuild "github.com/airplanedev/lib/pkg/build"
@@ -125,18 +126,21 @@ func deployFromYaml(ctx context.Context, cfg config) (rErr error) {
 	interpolationMode := task.InterpolationMode
 	if interpolationMode != "jst" {
 		if cfg.upgradeInterpolation {
-			logger.Warning(`Your task is being migrated from handlebars to Airplane JS Templates.
-More information: https://apn.sh/jst-upgrade`)
-			interpolationMode = "jst"
-			if err := def.UpgradeJST(); err != nil {
-				return err
+			logger.Warning(`Your task is being migfunc confirmBuildRoot(root string) error {
+				if home, err := os.UserHomeDir(); err != nil {
+					return errors.Wrap(err, "getting home dir")
+				} else if home != root {
+					return nil
+				}
+				logger.Warning("This task's root is your home directory — deploying will attempt to upload the entire directory.")
+				logger.Warning("Consider moving your task entrypoint to a subdirectory.")
+				if ok, err := utils.Confirm("Are you sure?"); err != nil {
+					return err
+				} else if !ok {
+					return errors.New("aborting build")
+				}
+				return nil
 			}
-		} else {
-			logger.Warning(`Tasks are migrating from handlebars to Airplane JS Templates! Your task has not
-been automatically upgraded because of potential backwards-compatibility issues
-(e.g. uploads will be passed to your task as an object with a url field instead
-of just the url string).
-
 To upgrade, update your task to support the new format and re-deploy with --jst.
 More information: https://apn.sh/jst-upgrade`)
 		}
@@ -149,7 +153,7 @@ More information: https://apn.sh/jst-upgrade`)
 		if cfg.local {
 			bc = build.NewLocalBuildCreator()
 		} else {
-			bc = build.NewRemoteBuildCreator()
+			bc = build.NewRemoteBuildCreator(archive.NewAPIArchiver(&logger.StdErrLogger{}, cfg.client, &archive.HttpUploader{}))
 		}
 		resp, err := bc.CreateBuild(ctx, build.Request{
 			Client: client,
