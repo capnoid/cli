@@ -43,11 +43,6 @@ func (dd *DefnDiscoverer) GetTaskConfig(ctx context.Context, task api.Task, file
 		return TaskConfig{}, err
 	}
 
-	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client)
-	if err != nil {
-		return TaskConfig{}, err
-	}
-
 	taskFilePath := ""
 	entrypoint, err := def.Entrypoint()
 	if err == definitions.ErrNoEntrypoint {
@@ -62,12 +57,10 @@ func (dd *DefnDiscoverer) GetTaskConfig(ctx context.Context, task api.Task, file
 	}
 
 	return TaskConfig{
-		TaskRoot:     dir.DefinitionRootPath(),
-		TaskFilePath: taskFilePath,
-		Task:         task,
-		Def:          &def,
-		Kind:         utr.Kind,
-		KindOptions:  utr.KindOptions,
+		TaskRoot:       dir.DefinitionRootPath(),
+		TaskEntryPoint: taskFilePath,
+		Task:           task,
+		Def:            &def,
 	}, nil
 }
 
