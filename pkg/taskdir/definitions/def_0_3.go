@@ -613,16 +613,12 @@ func (d Definition_0_3) taskKind() (taskKind_0_3, error) {
 	}
 }
 
-func (d Definition_0_3) GetUpdateTaskRequest(ctx context.Context, client api.APIClient, image *string) (api.UpdateTaskRequest, error) {
+func (d Definition_0_3) GetUpdateTaskRequest(ctx context.Context, client api.APIClient) (api.UpdateTaskRequest, error) {
 	req := api.UpdateTaskRequest{
 		Slug:        d.Slug,
 		Name:        d.Name,
 		Description: d.Description,
 		Timeout:     d.Timeout,
-	}
-
-	if image != nil {
-		req.Image = image
 	}
 
 	if err := d.addParametersToUpdateTaskRequest(ctx, &req); err != nil {

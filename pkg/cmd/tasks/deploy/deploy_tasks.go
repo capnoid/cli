@@ -215,11 +215,14 @@ More information: https://apn.sh/jst-upgrade`)
 		image = &resp.ImageURL
 	}
 
-	utr, err := tc.Def.GetUpdateTaskRequest(ctx, client, image)
+	utr, err := tc.Def.GetUpdateTaskRequest(ctx, client)
 	if err != nil {
 		return err
 	}
 
+	if image != nil {
+		utr.Image = image
+	}
 	utr.BuildID = pointers.String(tp.buildID)
 	utr.InterpolationMode = interpolationMode
 	utr.RequireExplicitPermissions = tc.Task.RequireExplicitPermissions

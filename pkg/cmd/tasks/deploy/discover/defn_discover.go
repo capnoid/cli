@@ -43,7 +43,7 @@ func (dd *DefnDiscoverer) GetTaskConfig(ctx context.Context, task api.Task, file
 		return TaskConfig{}, err
 	}
 
-	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client, nil)
+	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client)
 	if err != nil {
 		return TaskConfig{}, err
 	}
@@ -93,7 +93,7 @@ func (dd *DefnDiscoverer) HandleMissingTask(ctx context.Context, file string) (a
 	}
 
 	dd.Logger.Log("Creating task...")
-	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client, nil)
+	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client)
 	if err != nil {
 		return api.Task{}, err
 	}

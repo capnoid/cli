@@ -284,7 +284,7 @@ func (def *Definition) GetSlug() string {
 	return def.Slug
 }
 
-func (def *Definition) GetUpdateTaskRequest(ctx context.Context, client api.APIClient, image *string) (api.UpdateTaskRequest, error) {
+func (def *Definition) GetUpdateTaskRequest(ctx context.Context, client api.APIClient) (api.UpdateTaskRequest, error) {
 	kind, options, err := def.GetKindAndOptions()
 	if err != nil {
 		return api.UpdateTaskRequest{}, err
@@ -294,7 +294,6 @@ func (def *Definition) GetUpdateTaskRequest(ctx context.Context, client api.APIC
 		Slug:             def.Slug,
 		Name:             def.Name,
 		Description:      def.Description,
-		Image:            image,
 		Command:          []string{},
 		Arguments:        def.Arguments,
 		Parameters:       def.Parameters,
