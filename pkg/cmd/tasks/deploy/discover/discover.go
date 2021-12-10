@@ -41,7 +41,7 @@ type TaskDiscoverer interface {
 	IsAirplaneTask(ctx context.Context, file string) (slug string, err error)
 	GetTaskConfig(ctx context.Context, task api.Task, file string) (TaskConfig, error)
 	TaskConfigSource() TaskConfigSource
-	HandleMissingTask(ctx context.Context, file string) (api.Task, error)
+	HandleMissingTask(ctx context.Context, file string) (*api.Task, error)
 }
 
 type Discoverer struct {
@@ -93,13 +93,14 @@ func (d *Discoverer) DiscoverTasks(ctx context.Context, paths ...string) ([]Task
 			if err != nil {
 				var missingErr *api.TaskMissingError
 				if errors.As(err, &missingErr) {
-					task, err = td.HandleMissingTask(ctx, p)
+					taskPtr, err := td.HandleMissingTask(ctx, p)
 					if err != nil {
 						return nil, err
-					} else if task.ID == "" {
+					} else if taskPtr == nil {
 						d.Logger.Warning(`Task with slug %s does not exist, skipping deploy.`, slug)
 						continue
 					}
+					task = *taskPtr
 				} else {
 					return nil, err
 				}

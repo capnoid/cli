@@ -70,6 +70,6 @@ func (sd *ScriptDiscoverer) TaskConfigSource() TaskConfigSource {
 	return TaskConfigSourceScript
 }
 
-func (sd *ScriptDiscoverer) HandleMissingTask(ctx context.Context, file string) (api.Task, error) {
-	return api.Task{}, nil
+func (sd *ScriptDiscoverer) HandleMissingTask(ctx context.Context, file string) (*api.Task, error) {
+	return nil, nil
 }

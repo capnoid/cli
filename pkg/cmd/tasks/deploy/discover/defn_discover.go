@@ -75,27 +75,27 @@ func (dd *DefnDiscoverer) TaskConfigSource() TaskConfigSource {
 	return TaskConfigSourceDefn
 }
 
-func (dd *DefnDiscoverer) HandleMissingTask(ctx context.Context, file string) (api.Task, error) {
+func (dd *DefnDiscoverer) HandleMissingTask(ctx context.Context, file string) (*api.Task, error) {
 	def, err := getDef(file)
 	if err != nil {
-		return api.Task{}, err
+		return nil, err
 	}
 	if !utils.CanPrompt() {
-		return api.Task{}, nil
+		return nil, nil
 	}
 
 	question := fmt.Sprintf("Task with slug %s does not exist. Would you like to create a new task?", def.Slug)
 	if ok, err := utils.ConfirmWithAssumptions(question, dd.AssumeYes, dd.AssumeNo); err != nil {
-		return api.Task{}, err
+		return nil, err
 	} else if !ok {
 		// User answered "no", so bail here.
-		return api.Task{}, nil
+		return nil, nil
 	}
 
 	dd.Logger.Log("Creating task...")
 	utr, err := def.GetUpdateTaskRequest(ctx, dd.Client)
 	if err != nil {
-		return api.Task{}, err
+		return nil, err
 	}
 
 	_, err = dd.Client.CreateTask(ctx, api.CreateTaskRequest{
@@ -116,14 +116,14 @@ func (dd *DefnDiscoverer) HandleMissingTask(ctx context.Context, file string) (a
 		Timeout:          utr.Timeout,
 	})
 	if err != nil {
-		return api.Task{}, errors.Wrapf(err, "creating task %s", def.Slug)
+		return nil, errors.Wrapf(err, "creating task %s", def.Slug)
 	}
 
 	task, err := dd.Client.GetTask(ctx, def.Slug)
 	if err != nil {
-		return api.Task{}, errors.Wrap(err, "fetching created task")
+		return nil, errors.Wrap(err, "fetching created task")
 	}
-	return task, nil
+	return &task, nil
 }
 
 func getDef(file string) (definitions.Definition_0_3, error) {
