@@ -228,10 +228,12 @@ More information: https://apn.sh/jst-upgrade`)
 	if image != nil {
 		utr.Image = image
 	}
+	if utr.Permissions == nil {
+		utr.Permissions = tc.Task.Permissions
+		utr.RequireExplicitPermissions = tc.Task.RequireExplicitPermissions
+	}
 	utr.BuildID = pointers.String(tp.buildID)
 	utr.InterpolationMode = interpolationMode
-	utr.RequireExplicitPermissions = tc.Task.RequireExplicitPermissions
-	utr.Permissions = tc.Task.Permissions
 
 	_, err = client.UpdateTask(ctx, utr)
 	return err
